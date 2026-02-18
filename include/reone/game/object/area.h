@@ -19,7 +19,10 @@
 
 #include "reone/graphics/texture.h"
 #include "reone/graphics/types.h"
+#include "reone/input/event.h"
 #include "reone/resource/format/gffreader.h"
+#include "reone/resource/parser/gff/are.h"
+#include "reone/resource/parser/gff/git.h"
 #include "reone/resource/types.h"
 #include "reone/system/timer.h"
 
@@ -30,17 +33,9 @@
 #include "../object/camera/static.h"
 #include "../object/camera/thirdperson.h"
 #include "../pathfinder.h"
-#include "../schema/are.h"
-#include "../schema/git.h"
 #include "../types.h"
 
 namespace reone {
-
-namespace graphics {
-
-class Window;
-
-}
 
 namespace game {
 
@@ -75,7 +70,7 @@ public:
 
     void load(std::string name, const resource::Gff &are, const resource::Gff &git, bool fromSave = false);
 
-    bool handle(const SDL_Event &event);
+    bool handle(const input::Event &event);
     void update(float dt);
 
     void destroyObject(const Object &object);
@@ -218,7 +213,7 @@ private:
     Pathfinder _pathfinder;
     std::string _localizedName;
     RoomMap _rooms;
-    Visibility _visibility;
+    resource::Visibility _visibility;
     CameraStyle _camStyleDefault;
     CameraStyle _camStyleCombat;
     std::string _music;
@@ -298,45 +293,45 @@ private:
      * room B, but room B is not visible from room A. This function makes room
      * relations symmetric.
      */
-    Visibility fixVisibility(const Visibility &visiblity);
+    resource::Visibility fixVisibility(const resource::Visibility &visiblity);
 
     void determineObjectRoom(Object &object);
     void checkTriggersIntersection(const std::shared_ptr<Object> &triggerrer);
 
     // Loading ARE
 
-    void loadARE(const schema::ARE &are);
+    void loadARE(const resource::generated::ARE &are);
 
-    void loadCameraStyle(const schema::ARE &are);
-    void loadAmbientColor(const schema::ARE &are);
-    void loadScripts(const schema::ARE &are);
-    void loadMap(const schema::ARE &are);
-    void loadStealthXP(const schema::ARE &are);
-    void loadGrass(const schema::ARE &are);
-    void loadFog(const schema::ARE &are);
+    void loadCameraStyle(const resource::generated::ARE &are);
+    void loadAmbientColor(const resource::generated::ARE &are);
+    void loadScripts(const resource::generated::ARE &are);
+    void loadMap(const resource::generated::ARE &are);
+    void loadStealthXP(const resource::generated::ARE &are);
+    void loadGrass(const resource::generated::ARE &are);
+    void loadFog(const resource::generated::ARE &are);
 
     // END Loading ARE
 
     // Loading GIT
 
-    void loadGIT(const schema::GIT &git);
+    void loadGIT(const resource::generated::GIT &git);
 
-    void loadProperties(const schema::GIT &git);
-    void loadCreatures(const schema::GIT &git);
-    void loadDoors(const schema::GIT &git);
-    void loadPlaceables(const schema::GIT &git);
-    void loadWaypoints(const schema::GIT &git);
-    void loadTriggers(const schema::GIT &git);
-    void loadSounds(const schema::GIT &git);
-    void loadCameras(const schema::GIT &git);
-    void loadEncounters(const schema::GIT &git);
-    void loadStores(const schema::GIT &git);
+    void loadProperties(const resource::generated::GIT &git);
+    void loadCreatures(const resource::generated::GIT &git);
+    void loadDoors(const resource::generated::GIT &git);
+    void loadPlaceables(const resource::generated::GIT &git);
+    void loadWaypoints(const resource::generated::GIT &git);
+    void loadTriggers(const resource::generated::GIT &git);
+    void loadSounds(const resource::generated::GIT &git);
+    void loadCameras(const resource::generated::GIT &git);
+    void loadEncounters(const resource::generated::GIT &git);
+    void loadStores(const resource::generated::GIT &git);
 
     // END Loading GIT
 
     // User input
 
-    bool handleKeyDown(const SDL_KeyboardEvent &event);
+    bool handleKeyDown(const input::KeyEvent &event);
 
     // END User input
 };

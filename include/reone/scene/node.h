@@ -27,7 +27,7 @@ namespace graphics {
 
 struct GraphicsServices;
 
-}
+} // namespace graphics
 
 namespace audio {
 
@@ -35,10 +35,17 @@ struct AudioServices;
 
 }
 
+namespace resource {
+
+struct ResourceServices;
+
+}
+
 namespace scene {
 
+class IRenderPass;
+class ISceneGraph;
 class IUser;
-class SceneGraph;
 
 class SceneNode : boost::noncopyable {
 public:
@@ -48,16 +55,15 @@ public:
 
     virtual void update(float dt);
 
-    virtual void drawLeafs(const std::vector<SceneNode *> &leafs) {
+    virtual void renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) {
     }
 
     bool isEnabled() const { return _enabled; }
-    bool isCullable() const { return _cullable; }
     bool isCulled() const { return _culled; }
     bool isPoint() const { return _point; }
 
-    glm::vec3 getOrigin() const;
-    glm::vec2 getOrigin2D() const;
+    glm::vec3 origin() const;
+    glm::vec2 origin2D() const;
 
     float getDistanceTo(const glm::vec3 &point) const;
     float getDistanceTo(const SceneNode &other) const;
@@ -75,12 +81,13 @@ public:
     IUser *user() { return _user; }
     const IUser *user() const { return _user; }
 
-    void setUser(IUser &user) { _user = &user; }
+    void setUser(IUser &user) {
+        _user = &user;
+    }
 
     // Flags
 
     void setEnabled(bool enabled) { _enabled = enabled; }
-    void setCullable(bool cullable) { _cullable = cullable; }
     void setCulled(bool culled) { _culled = culled; }
 
     // END Flags
@@ -97,9 +104,10 @@ public:
 
 protected:
     SceneNodeType _type;
-    SceneGraph &_sceneGraph;
+    ISceneGraph &_sceneGraph;
     graphics::GraphicsServices &_graphicsSvc;
     audio::AudioServices &_audioSvc;
+    resource::ResourceServices &_resourceSvc;
 
     SceneNode *_parent {nullptr};
     std::unordered_set<SceneNode *> _children;
@@ -111,9 +119,8 @@ protected:
     // Flags
 
     bool _enabled {true};
-    bool _cullable {false}; /**< can this node be frustum- or distance-culled? */
-    bool _culled {false};   /**< has this node been frustum- or distance-culled? */
-    bool _point {true};     /**< is this node represented by a single point?  */
+    bool _culled {false}; /**< has this node been frustum- or distance-culled? */
+    bool _point {true};   /**< is this node represented by a single point?  */
 
     // END Flags
 
@@ -127,13 +134,15 @@ protected:
 
     SceneNode(
         SceneNodeType type,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         _type(type),
         _sceneGraph(sceneGraph),
         _graphicsSvc(graphicsSvc),
-        _audioSvc(audioSvc) {
+        _audioSvc(audioSvc),
+        _resourceSvc(resourceSvc) {
     }
 
     void computeAbsoluteTransforms();

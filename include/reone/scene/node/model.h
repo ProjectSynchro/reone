@@ -85,17 +85,26 @@ public:
     ModelSceneNode(
         graphics::Model &model,
         ModelUsage usage,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc);
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
+        SceneNode(
+            SceneNodeType::Model,
+            sceneGraph,
+            graphicsSvc,
+            audioSvc,
+            resourceSvc),
+        _model(&model),
+        _usage(usage) {
+    }
 
     void init();
 
     void update(float dt) override;
 
-    void drawLeafs(const std::vector<SceneNode *> &leafs) override;
-
-    void drawAABB();
+    void renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) override;
+    void renderAABB(IRenderPass &pass);
 
     void computeAABB();
     void signalEvent(const std::string &name);
@@ -111,14 +120,18 @@ public:
 
     void setModel(graphics::Model &model);
     void setDrawDistance(float distance) { _drawDistance = distance; }
-    void setDiffuseMap(graphics::Texture *texture);
+    void setMainTexture(graphics::Texture *texture);
     void setEnvironmentMap(graphics::Texture *texture);
     void setPickable(bool pickable) { _pickable = pickable; }
 
     // Animation
 
-    void playAnimation(const std::string &name, AnimationProperties properties = AnimationProperties());
+    void playAnimation(const std::string &name, graphics::LipAnimation *lipAnim = nullptr, AnimationProperties properties = AnimationProperties());
     void playAnimation(graphics::Animation &anim, graphics::LipAnimation *lipAnim = nullptr, AnimationProperties properties = AnimationProperties());
+
+    void pauseAnimation();
+    void resumeAnimation();
+    void setAnimationTime(float time);
 
     bool isAnimationFinished() const;
 

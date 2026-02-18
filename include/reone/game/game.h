@@ -19,19 +19,19 @@
 
 #include "reone/audio/source.h"
 #include "reone/graphics/cursor.h"
-#include "reone/graphics/eventhandler.h"
+#include "reone/input/event.h"
 #include "reone/movie/movie.h"
 #include "reone/script/routines.h"
 #include "reone/system/logutil.h"
 
 #include "action.h"
 #include "combat.h"
+#include "console.h"
 #include "di/services.h"
 #include "effect.h"
 #include "event.h"
 #include "gui/chargen.h"
 #include "gui/computer.h"
-#include "gui/console.h"
 #include "gui/container.h"
 #include "gui/conversation.h"
 #include "gui/dialog.h"
@@ -41,7 +41,6 @@
 #include "gui/mainmenu.h"
 #include "gui/map.h"
 #include "gui/partyselect.h"
-#include "gui/profileoverlay.h"
 #include "gui/saveload.h"
 #include "location.h"
 #include "object/area.h"
@@ -74,7 +73,7 @@ class GUI;
 
 namespace game {
 
-class Game : public graphics::IEventHandler, boost::noncopyable {
+class Game : boost::noncopyable {
 public:
     enum class Screen {
         None,
@@ -90,43 +89,30 @@ public:
     };
 
     Game(
-        GameID gameId,
+        resource::GameID gameId,
         std::filesystem::path path,
         OptionsView &options,
-        ServicesView &services) :
+        ServicesView &services,
+        IConsole &console) :
         _gameId(gameId),
         _path(std::move(path)),
         _options(options),
         _services(services),
+        _console(console),
         _party(*this),
         _combat(*this, services) {
     }
 
-    ~Game() {
-        deinit();
-    }
-
     void init();
 
-    void deinit() {
-        if (_updateThread.joinable()) {
-            _updateThread.join();
-        }
-    }
-
-    /**
-     * @return exit code
-     */
-    int run();
-
-    void quit() {
-        setState(State::Quitting);
-    }
+    bool handle(const input::Event &event);
+    void update(float frameTime);
+    void render();
 
     void playVideo(const std::string &name);
 
     bool isPaused() const { return _paused; }
-    bool isTSL() const { return _gameId == GameID::TSL; }
+    bool isTSL() const { return _gameId == resource::GameID::TSL; }
 
     Camera *getActiveCamera() const;
 
@@ -145,7 +131,7 @@ public:
     void initLocalServices();
     void setSceneSurfaces();
 
-    void setCursorType(CursorType type);
+    void setCursorType(resource::CursorType type);
     void setPaused(bool paused);
     void setRelativeMouseMode(bool relative);
 
@@ -171,6 +157,22 @@ public:
 
     std::shared_ptr<movie::IMovie> movie() const {
         return _movie;
+    }
+
+    void quit() {
+        _quitRequested = true;
+    }
+
+    bool isQuitRequested() {
+        return _quitRequested;
+    }
+
+    resource::CursorType cursorType() const {
+        return _cursorType;
+    }
+
+    bool relativeMouseMode() const {
+        return _relativeMouseMode;
     }
 
     // Module loading
@@ -309,38 +311,24 @@ public:
 
     // END Global variables
 
-    // IEventHandler
-
-    bool handle(const SDL_Event &event) override;
-
-    // END IEventHandler
-
 private:
-    enum class State {
-        Created,
-        Running,
-        ModuleLoad,
-        Quitting
-    };
-
-    GameID _gameId;
+    resource::GameID _gameId;
     std::filesystem::path _path;
     OptionsView &_options;
     ServicesView &_services;
-
-    std::atomic<State> _state {State::Created};
-    uint32_t _ticks {0};
-    uint32_t _updateTicks {0};
+    IConsole &_console;
 
     Screen _screen {Screen::None};
 
     std::shared_ptr<movie::IMovie> _movie;
-    CursorType _cursorType {CursorType::None};
+    resource::CursorType _cursorType {resource::CursorType::None};
     std::shared_ptr<graphics::Cursor> _cursor;
-    std::atomic<float> _gameSpeed {1.0f};
+    float _gameSpeed {1.0f};
     CameraType _cameraType {CameraType::ThirdPerson};
     bool _paused {false};
     std::set<std::string> _moduleNames;
+    bool _quitRequested {false};
+    bool _relativeMouseMode {false};
 
     uint32_t _nextObjectId {2}; // ids 0 and 1 are reserved
     std::map<uint32_t, std::shared_ptr<Object>> _objectById;
@@ -368,9 +356,7 @@ private:
     std::unique_ptr<SaveLoad> _saveLoad;
 
     std::unique_ptr<Map> _map;
-    std::unique_ptr<Console> _console;
     std::unique_ptr<LoadingScreen> _loadScreen;
-    std::unique_ptr<ProfileOverlay> _profileOverlay;
 
     Conversation *_conversation {nullptr}; /**< pointer to either DialogGUI or ComputerGUI  */
 
@@ -401,59 +387,37 @@ private:
 
     // END Global variables
 
-    // Update thread
-
-    std::thread _updateThread;
-    std::mutex _updateMutex;
-    std::condition_variable _updateCondVar;
-    std::atomic_bool _updateFlushed {false};
-
-    // END Update thread
-
-    void setState(State state) {
-        std::lock_guard<std::mutex> lock(_updateMutex);
-        _state = state;
-        _updateCondVar.notify_one();
-    }
-
     void stopMovement();
-
-    void mainLoopIteration(float dt);
 
     void loadDefaultParty();
     void loadNextModule();
     void playMusic(const std::string &resRef);
     void toggleInGameCameraType();
 
-    bool handleMouseButtonDown(const SDL_MouseButtonEvent &event);
-    bool handleKeyDown(const SDL_KeyboardEvent &event);
+    bool handleKeyDown(const input::KeyEvent &event);
+    bool handleMouseMotion(const input::MouseMotionEvent &event);
+    bool handleMouseButtonDown(const input::MouseButtonEvent &event);
+    bool handleMouseButtonUp(const input::MouseButtonEvent &event);
 
     void onModuleSelected(const std::string &name);
-    void drawHUD();
+    void renderHUD();
 
     GameGUI *getScreenGUI() const;
     CameraType getConversationCamera(int &cameraId) const;
 
     // Updates
 
-    void update(float dt);
-
     void updateMovie(float dt);
     void updateMusic();
     void updateCamera(float dt);
     void updateSceneGraph(float dt);
-    void updateCursor();
-
-    void updateThreadFunc();
 
     // END Updates
 
     // Rendering
 
-    void drawAll();
-
-    void drawWorld();
-    void drawGUI();
+    void renderScene();
+    void renderGUI();
 
     // END Rendering
 
@@ -472,12 +436,32 @@ private:
             gui->init();
             return gui;
         } catch (const std::exception &e) {
-            error(boost::format("Error loading GUI: %s") % std::string(e.what()));
+            error(str(boost::format("Error loading GUI: %s") % std::string(e.what())));
             return nullptr;
         }
     }
 
     // END GUI
+
+    // Console commands
+
+    void registerConsoleCommands();
+
+    void consoleInfo(const IConsole::TokenList &tokens);
+    void consoleListGlobals(const IConsole::TokenList &tokens);
+    void consoleListLocals(const IConsole::TokenList &tokens);
+    void consoleListAnim(const IConsole::TokenList &tokens);
+    void consolePlayAnim(const IConsole::TokenList &tokens);
+    void consoleKill(const IConsole::TokenList &tokens);
+    void consoleAddItem(const IConsole::TokenList &tokens);
+    void consoleGiveXP(const IConsole::TokenList &tokens);
+    void consoleWarp(const IConsole::TokenList &tokens);
+    void consoleRunScript(const IConsole::TokenList &tokens);
+    void consoleShowAABB(const IConsole::TokenList &tokens);
+    void consoleShowWalkmesh(const IConsole::TokenList &tokens);
+    void consoleShowTriggers(const IConsole::TokenList &tokens);
+
+    // END Console commands
 };
 
 } // namespace game

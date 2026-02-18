@@ -43,9 +43,11 @@ private:
         bool devMode {true};
         int width {1024};
         int height {768};
+        int winscale {100};
         bool fullscreen {false};
         bool vsync {false};
         bool grass {true};
+        bool pbr {true};
         bool ssao {true};
         bool ssr {true};
         bool fxaa {true};
@@ -65,6 +67,8 @@ private:
     wxTextCtrl *_textCtrlGameDir;
     wxCheckBox *_checkBoxDev;
     wxChoice *_choiceResolution;
+    wxChoice *_choiceWinScale;
+    wxChoice *_choiceRenderer;
     wxChoice *_choiceTextureQuality;
     wxChoice *_choiceShadowResolution;
     wxChoice *_choiceAnisoFilter;
@@ -89,8 +93,6 @@ private:
 
     void LoadConfiguration();
     void SaveConfiguration();
-
-    wxDECLARE_EVENT_TABLE();
 };
 
 } // namespace reone

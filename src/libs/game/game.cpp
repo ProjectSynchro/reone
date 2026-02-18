@@ -19,54 +19,54 @@
 
 #include "reone/audio/context.h"
 #include "reone/audio/di/services.h"
-#include "reone/audio/files.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/game/combat.h"
-#include "reone/game/cursors.h"
 #include "reone/game/debug.h"
 #include "reone/game/di/services.h"
-#include "reone/game/dialogs.h"
 #include "reone/game/location.h"
 #include "reone/game/party.h"
-#include "reone/game/resourcedirector.h"
 #include "reone/game/script/routines.h"
-#include "reone/game/soundsets.h"
 #include "reone/game/surfaces.h"
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/format/tgawriter.h"
-#include "reone/graphics/lips.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/pipeline.h"
+#include "reone/graphics/meshregistry.h"
 #include "reone/graphics/renderbuffer.h"
-#include "reone/graphics/shaders.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/walkmeshes.h"
-#include "reone/graphics/window.h"
 #include "reone/gui/gui.h"
 #include "reone/movie/format/bikreader.h"
-#include "reone/movie/movies.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/exception/format.h"
+#include "reone/resource/director.h"
 #include "reone/resource/exception/notfound.h"
 #include "reone/resource/format/erfreader.h"
 #include "reone/resource/format/erfwriter.h"
 #include "reone/resource/format/gffwriter.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/audioclips.h"
+#include "reone/resource/provider/cursors.h"
+#include "reone/resource/provider/dialogs.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/lips.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/movies.h"
+#include "reone/resource/provider/scripts.h"
+#include "reone/resource/provider/soundsets.h"
+#include "reone/resource/provider/textures.h"
+#include "reone/resource/provider/walkmeshes.h"
 #include "reone/resource/resources.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
+#include "reone/scene/render/pipeline.h"
 #include "reone/script/di/services.h"
-#include "reone/script/scripts.h"
 #include "reone/system/binarywriter.h"
 #include "reone/system/clock.h"
 #include "reone/system/di/services.h"
+#include "reone/system/exception/validation.h"
 #include "reone/system/fileutil.h"
 #include "reone/system/logutil.h"
+#include "reone/system/threadutil.h"
 
 using namespace reone::audio;
 using namespace reone::graphics;
@@ -81,30 +81,39 @@ namespace reone {
 namespace game {
 
 void Game::init() {
+    registerConsoleCommands();
     initLocalServices();
     setSceneSurfaces();
     setCursorType(CursorType::Default);
 
-    _services.graphics.window.setEventHandler(this);
-    _moduleNames = _services.game.resourceDirector.moduleNames();
+    _moduleNames = _services.resource.director.moduleNames();
 
-    _updateThread = std::thread(std::bind(&Game::updateThreadFunc, this));
+    playVideo("legal");
+    openMainMenu();
+}
+
+void Game::registerConsoleCommands() {
+    _console.registerCommand("info", "information on selected object", std::bind(&Game::consoleInfo, this, std::placeholders::_1));
+    _console.registerCommand("listglobals", "list global variables", std::bind(&Game::consoleListGlobals, this, std::placeholders::_1));
+    _console.registerCommand("listlocals", "list local variables", std::bind(&Game::consoleListLocals, this, std::placeholders::_1));
+    _console.registerCommand("runscript", "run script", std::bind(&Game::consoleRunScript, this, std::placeholders::_1));
+    _console.registerCommand("listanim", "list animations of selected object", std::bind(&Game::consoleListAnim, this, std::placeholders::_1));
+    _console.registerCommand("playanim", "play animation on selected object", std::bind(&Game::consolePlayAnim, this, std::placeholders::_1));
+    _console.registerCommand("warp", "warp to a module", std::bind(&Game::consoleWarp, this, std::placeholders::_1));
+    _console.registerCommand("kill", "kill selected object", std::bind(&Game::consoleKill, this, std::placeholders::_1));
+    _console.registerCommand("additem", "add item to selected object", std::bind(&Game::consoleAddItem, this, std::placeholders::_1));
+    _console.registerCommand("givexp", "give experience to selected creature", std::bind(&Game::consoleGiveXP, this, std::placeholders::_1));
+    _console.registerCommand("showaabb", "toggle rendering AABB", std::bind(&Game::consoleShowAABB, this, std::placeholders::_1));
+    _console.registerCommand("showwalkmesh", "toggle rendering walkmesh", std::bind(&Game::consoleShowWalkmesh, this, std::placeholders::_1));
+    _console.registerCommand("showtriggers", "toggle rendering triggers", std::bind(&Game::consoleShowTriggers, this, std::placeholders::_1));
 }
 
 void Game::initLocalServices() {
-    auto console = std::make_unique<Console>(*this, _services);
-    console->init();
-    _console = std::move(console);
-
-    auto profileOverlay = std::make_unique<ProfileOverlay>(_services, _options);
-    profileOverlay->init();
-    _profileOverlay = std::move(profileOverlay);
-
     auto routines = std::make_unique<Routines>(_gameId, this, &_services);
     routines->init();
     _routines = std::move(routines);
 
-    _scriptRunner = std::make_unique<ScriptRunner>(*_routines, _services.script.scripts);
+    _scriptRunner = std::make_unique<ScriptRunner>(*_routines, _services.resource.scripts);
 
     _map = std::make_unique<Map>(*this, _services);
 }
@@ -121,68 +130,61 @@ void Game::setSceneSurfaces() {
     }
 }
 
-void Game::updateThreadFunc() {
-    while (true) {
-        State state = _state;
-        if (state == State::Quitting) {
-            return;
-        } else if (state == State::Created || state == State::ModuleLoad) {
-            std::unique_lock<std::mutex> lock {_updateMutex};
-            _updateCondVar.wait(lock, [this]() { return _state == State::Running || _state == State::Quitting; });
-            _updateTicks = _services.system.clock.ticks();
-            if (_state == State::Quitting) {
-                return;
+bool Game::handle(const input::Event &event) {
+    switch (event.type) {
+    case input::EventType::KeyDown:
+        if (handleKeyDown(event.key)) {
+            return true;
+        }
+        break;
+    case input::EventType::MouseMotion:
+        if (handleMouseMotion(event.motion)) {
+            return true;
+        }
+        break;
+    case input::EventType::MouseButtonDown:
+        if (handleMouseButtonDown(event.button)) {
+            return true;
+        }
+        break;
+    case input::EventType::MouseButtonUp:
+        if (handleMouseButtonUp(event.button)) {
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (!_movie) {
+        auto gui = getScreenGUI();
+        if (gui && gui->handle(event)) {
+            return true;
+        }
+        switch (_screen) {
+        case Screen::InGame: {
+            if (_party.handle(event)) {
+                return true;
             }
+            auto camera = getActiveCamera();
+            if (camera && camera->handle(event)) {
+                return true;
+            }
+            if (_module->handle(event)) {
+                return true;
+            }
+            break;
         }
-
-        if (!_updateFlushed) {
-            std::this_thread::yield();
-            continue;
+        default:
+            break;
         }
-
-        uint32_t ticks = _services.system.clock.ticks();
-        float dt = _gameSpeed * (ticks - _updateTicks) / 1000.0f;
-        _updateTicks = ticks;
-
-        std::lock_guard<std::mutex> lock {_updateMutex};
-        // update game objects
-        _updateFlushed = false;
     }
+
+    return false;
 }
 
-int Game::run() {
-    playVideo("legal");
-    openMainMenu();
-
-    _ticks = _services.system.clock.ticks();
-    setState(State::Running);
-
-    while (_state != State::Quitting) {
-        uint32_t ticks = _services.system.clock.ticks();
-        float dt = (ticks - _ticks) / 1000.0f;
-        _ticks = ticks;
-
-        mainLoopIteration(dt * _gameSpeed);
-    }
-
-    return 0;
-}
-
-void Game::mainLoopIteration(float dt) {
-    bool quit = false;
-    _services.graphics.window.processEvents(quit);
-    if (quit) {
-        setState(State::Quitting);
-        return;
-    }
-    if (!_services.graphics.window.isInFocus()) {
-        return;
-    }
-    update(dt);
-    drawAll();
-}
-
-void Game::update(float dt) {
+void Game::update(float frameTime) {
+    float dt = frameTime * _gameSpeed;
     if (_movie) {
         updateMovie(dt);
         return;
@@ -194,14 +196,10 @@ void Game::update(float dt) {
     }
     updateCamera(dt);
 
-    {
-        std::lock_guard<std::mutex> lock {_updateMutex};
-        bool updModule = !_movie && _module && (_screen == Screen::InGame || _screen == Screen::Conversation);
-        if (updModule && !_paused) {
-            _module->update(dt);
-            _combat.update(dt);
-        }
-        _updateFlushed = true;
+    bool updModule = !_movie && _module && (_screen == Screen::InGame || _screen == Screen::Conversation);
+    if (updModule && !_paused) {
+        _module->update(dt);
+        _combat.update(dt);
     }
 
     auto gui = getScreenGUI();
@@ -209,31 +207,77 @@ void Game::update(float dt) {
         gui->update(dt);
     }
     updateSceneGraph(dt);
-
-    _profileOverlay->update(dt);
-
-    updateCursor();
 }
 
-void Game::drawAll() {
-    _services.graphics.context.clearColorDepth();
-
+void Game::render() {
     if (_movie) {
         _movie->render();
     } else {
-        drawWorld();
-        drawGUI();
-        _profileOverlay->draw();
-        if (_cursor) {
-            _cursor->draw();
+        renderScene();
+        renderGUI();
+    }
+}
+
+bool Game::handleKeyDown(const input::KeyEvent &event) {
+    if (event.repeat)
+        return false;
+
+    switch (event.code) {
+    case input::KeyCode::Minus:
+        if (_options.game.developer && _gameSpeed > 1.0f) {
+            _gameSpeed = glm::max(1.0f, _gameSpeed - 1.0f);
+            return true;
         }
+        break;
+
+    case input::KeyCode::Equals:
+        if (_options.game.developer && _gameSpeed < 8.0f) {
+            _gameSpeed = glm::min(8.0f, _gameSpeed + 1.0f);
+            return true;
+        }
+        break;
+
+    case input::KeyCode::V:
+        if (_options.game.developer && _screen == Screen::InGame) {
+            toggleInGameCameraType();
+            return true;
+        }
+        break;
+
+    default:
+        break;
     }
 
-    _services.graphics.window.swapBuffers();
+    return false;
+}
+
+bool Game::handleMouseMotion(const input::MouseMotionEvent &event) {
+    _cursor->setPosition({event.x, event.y});
+    return false;
+}
+
+bool Game::handleMouseButtonDown(const input::MouseButtonEvent &event) {
+    if (event.button != input::MouseButton::Left) {
+        return false;
+    }
+    _cursor->setPressed(true);
+    if (_movie) {
+        _movie->finish();
+        return true;
+    }
+    return false;
+}
+
+bool Game::handleMouseButtonUp(const input::MouseButtonEvent &event) {
+    if (event.button != input::MouseButton::Left) {
+        return false;
+    }
+    _cursor->setPressed(false);
+    return false;
 }
 
 void Game::loadModule(const std::string &name, std::string entry) {
-    info("Load module '" + name + "'");
+    info("Loading module '" + name + "'");
 
     withLoadingScreen("load_" + name, [this, &name, &entry]() {
         loadInGameMenus();
@@ -244,12 +288,12 @@ void Game::loadModule(const std::string &name, std::string entry) {
                 _module->area()->unloadParty();
             }
 
-            _services.game.resourceDirector.onModuleLoad(name);
+            _services.resource.director.onModuleLoad(name);
 
             if (_loadScreen) {
                 _loadScreen->setProgress(50);
             }
-            drawAll();
+            render();
 
             _services.scene.graphs.get(kSceneMain).clear();
 
@@ -260,7 +304,7 @@ void Game::loadModule(const std::string &name, std::string entry) {
                 _module = newModule();
                 _objectById.insert(std::make_pair(_module->id(), _module));
 
-                std::shared_ptr<Gff> ifo(_services.resource.gffs.get("module", ResourceType::Ifo));
+                std::shared_ptr<Gff> ifo(_services.resource.gffs.get("module", ResType::Ifo));
                 if (!ifo) {
                     throw ResourceNotFoundException("Module IFO not found");
                 }
@@ -280,12 +324,12 @@ void Game::loadModule(const std::string &name, std::string entry) {
             if (_loadScreen) {
                 _loadScreen->setProgress(100);
             }
-            drawAll();
+            render();
 
             std::string musicName(_module->area()->music());
             playMusic(musicName);
 
-            _ticks = _services.system.clock.ticks();
+            //_ticks = _services.system.clock.ticks();
             openInGame();
         } catch (const std::exception &e) {
             error("Failed loading module '" + name + "': " + std::string(e.what()));
@@ -311,6 +355,7 @@ void Game::loadDefaultParty() {
         _objectById.insert(std::make_pair(companion->id(), companion));
         companion->loadFromBlueprint(member2);
         companion->setImmortal(true);
+        companion->equip("g_w_dblsbr001");
         _party.addMember(0, companion);
     }
     if (!member3.empty()) {
@@ -328,16 +373,14 @@ void Game::setCursorType(CursorType type) {
     }
     if (type == CursorType::None) {
         _cursor.reset();
-        _services.graphics.window.showCursor(true);
     } else {
-        _cursor = _services.game.cursors.get(type);
-        _services.graphics.window.showCursor(false);
+        _cursor = _services.resource.cursors.get(type);
     }
     _cursorType = type;
 }
 
 void Game::playVideo(const std::string &name) {
-    _movie = _services.movie.movies.get(name);
+    _movie = _services.resource.movies.get(name);
     if (!_movie) {
         return;
     }
@@ -359,19 +402,16 @@ void Game::playMusic(const std::string &resRef) {
     _musicResRef = resRef;
 }
 
-void Game::drawWorld() {
-    auto &scene = _services.scene.graphs.get(kSceneMain);
-    auto output = _services.graphics.pipeline.draw(scene, glm::ivec2(_options.graphics.width, _options.graphics.height));
-    if (!output) {
+void Game::renderScene() {
+    if (!_module) {
         return;
     }
-    _services.graphics.uniforms.setGeneral([](auto &general) {
-        general.resetGlobals();
-        general.resetLocals();
-    });
-    _services.graphics.shaders.use(ShaderProgramId::SimpleTexture);
-    _services.graphics.textures.bind(*output);
-    _services.graphics.meshes.quadNDC().draw();
+    auto &scene = _services.scene.graphs.get(kSceneMain);
+    auto &output = scene.render({_options.graphics.width, _options.graphics.height});
+    _services.graphics.uniforms.setLocals(std::bind(&LocalUniforms::reset, std::placeholders::_1));
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::ndcTexture));
+    _services.graphics.context.bindTexture(output);
+    _services.graphics.meshRegistry.get(MeshName::quadNDC).draw(_services.graphics.statistic);
 }
 
 void Game::toggleInGameCameraType() {
@@ -386,7 +426,7 @@ void Game::toggleInGameCameraType() {
         std::shared_ptr<Area> area(_module->area());
         auto thirdPerson = area->getCamera<ThirdPersonCamera>(CameraType::ThirdPerson);
         auto firstPerson = area->getCamera<FirstPersonCamera>(CameraType::FirstPerson);
-        firstPerson->setPosition(thirdPerson->sceneNode()->getOrigin());
+        firstPerson->setPosition(thirdPerson->sceneNode()->origin());
         firstPerson->setFacing(thirdPerson->facing());
         _cameraType = CameraType::FirstPerson;
         break;
@@ -424,24 +464,33 @@ std::shared_ptr<Object> Game::getObjectById(uint32_t id) const {
     }
 }
 
-void Game::drawGUI() {
+void Game::renderGUI() {
+    _services.graphics.uniforms.setGlobals([this](auto &globals) {
+        globals.reset();
+        globals.projection = glm::ortho(
+            0.0f,
+            static_cast<float>(_options.graphics.width),
+            static_cast<float>(_options.graphics.height),
+            0.0f, 0.0f, 100.0f);
+        globals.projectionInv = glm::inverse(globals.projection);
+    });
     switch (_screen) {
     case Screen::InGame:
         if (_cameraType == CameraType::ThirdPerson) {
-            drawHUD();
-        }
-        if (_console->isOpen()) {
-            _console->draw();
+            renderHUD();
         }
         break;
 
     default: {
         auto gui = getScreenGUI();
         if (gui) {
-            gui->draw();
+            gui->render();
         }
         break;
     }
+    }
+    if (_cursor && !_relativeMouseMode) {
+        _cursor->render();
     }
 }
 
@@ -458,16 +507,14 @@ void Game::updateMusic() {
         return;
     }
     if (_music && _music->isPlaying()) {
-        _music->update();
-    } else {
-        _music = _services.audio.player.play(_musicResRef, AudioType::Music);
+        return;
     }
+    auto clip = _services.resource.audioClips.get(_musicResRef);
+    _music = _services.audio.mixer.play(std::move(clip), AudioType::Music);
 }
 
 void Game::loadNextModule() {
-    setState(State::ModuleLoad);
     loadModule(_nextModule, _nextEntry);
-    setState(State::Running);
 
     _nextModule.clear();
     _nextEntry.clear();
@@ -513,10 +560,10 @@ void Game::updateCamera(float dt) {
         if (_cameraType == CameraType::ThirdPerson) {
             std::shared_ptr<Creature> partyLeader(_party.getLeader());
             if (partyLeader) {
-                listenerPosition = partyLeader->position() + 1.7f; // TODO: height based on appearance
+                listenerPosition = partyLeader->position() + glm::vec3 {0.0f, 0.0f, 1.7f}; // TODO: height based on appearance
             }
         } else {
-            listenerPosition = camera->sceneNode()->getOrigin();
+            listenerPosition = camera->sceneNode()->origin();
         }
         _services.audio.context.setListenerPosition(std::move(listenerPosition));
     }
@@ -530,110 +577,10 @@ void Game::updateSceneGraph(float dt) {
     auto &sceneGraph = _services.scene.graphs.get(kSceneMain);
     sceneGraph.setActiveCamera(camera->cameraSceneNode().get());
     sceneGraph.setUpdateRoots(!_paused);
-    sceneGraph.setDrawWalkmeshes(isShowWalkmeshEnabled());
-    sceneGraph.setDrawTriggers(isShowTriggersEnabled());
+    sceneGraph.setRenderAABB(isShowAABBEnabled());
+    sceneGraph.setRenderWalkmeshes(isShowWalkmeshEnabled());
+    sceneGraph.setRenderTriggers(isShowTriggersEnabled());
     sceneGraph.update(dt);
-}
-
-void Game::updateCursor() {
-    int x, y;
-    auto state = _services.graphics.window.mouseState(&x, &y);
-    auto pressed = state & SDL_BUTTON(1);
-    if (_cursor) {
-        _cursor->setPosition(glm::ivec2(x, y));
-        _cursor->setPressed(pressed);
-    }
-}
-
-bool Game::handle(const SDL_Event &event) {
-    if (_profileOverlay->handle(event))
-        return true;
-
-    if (!_movie) {
-        auto gui = getScreenGUI();
-        if (gui && gui->handle(event)) {
-            return true;
-        }
-        switch (_screen) {
-        case Screen::InGame: {
-            if (_console->handle(event)) {
-                return true;
-            }
-            if (_party.handle(event)) {
-                return true;
-            }
-            auto camera = getActiveCamera();
-            if (camera && camera->handle(event)) {
-                return true;
-            }
-            if (_module->handle(event)) {
-                return true;
-            }
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    switch (event.type) {
-    case SDL_MOUSEBUTTONDOWN:
-        if (handleMouseButtonDown(event.button))
-            return true;
-        break;
-    case SDL_KEYDOWN:
-        if (handleKeyDown(event.key))
-            return true;
-        break;
-    default:
-        break;
-    }
-
-    return false;
-}
-
-bool Game::handleMouseButtonDown(const SDL_MouseButtonEvent &event) {
-    if (event.button != SDL_BUTTON_LEFT)
-        return false;
-
-    if (_movie) {
-        _movie->finish();
-        return true;
-    }
-
-    return false;
-}
-
-bool Game::handleKeyDown(const SDL_KeyboardEvent &event) {
-    if (event.repeat)
-        return false;
-
-    switch (event.keysym.sym) {
-    case SDLK_MINUS:
-        if (_options.game.developer && _gameSpeed > 1.0f) {
-            _gameSpeed = glm::max(1.0f, _gameSpeed - 1.0f);
-            return true;
-        }
-        break;
-
-    case SDLK_EQUALS:
-        if (_options.game.developer && _gameSpeed < 8.0f) {
-            _gameSpeed = glm::min(8.0f, _gameSpeed + 1.0f);
-            return true;
-        }
-        break;
-
-    case SDLK_v:
-        if (_options.game.developer && _screen == Screen::InGame) {
-            toggleInGameCameraType();
-            return true;
-        }
-        break;
-
-    default:
-        break;
-    }
-
-    return false;
 }
 
 bool Game::getGlobalBoolean(const std::string &name) const {
@@ -677,7 +624,7 @@ void Game::setPaused(bool paused) {
 }
 
 void Game::setRelativeMouseMode(bool relative) {
-    _services.graphics.window.setRelativeMouseMode(relative);
+    _relativeMouseMode = relative;
 }
 
 void Game::withLoadingScreen(const std::string &imageResRef, const std::function<void()> &block) {
@@ -689,7 +636,7 @@ void Game::withLoadingScreen(const std::string &imageResRef, const std::function
         _loadScreen->setProgress(0);
     }
     changeScreen(Screen::Loading);
-    drawAll();
+    render();
     block();
 }
 
@@ -784,14 +731,14 @@ void Game::startCharacterGeneration() {
     }
     withLoadingScreen(_charGen->loadScreenResRef(), [this]() {
         _loadScreen->setProgress(100);
-        drawAll();
+        render();
         playMusic(_charGen->musicResRef());
         changeScreen(Screen::CharacterGeneration);
     });
 }
 
 void Game::startDialog(const std::shared_ptr<Object> &owner, const std::string &resRef) {
-    std::shared_ptr<Gff> dlg(_services.resource.gffs.get(resRef, ResourceType::Dlg));
+    std::shared_ptr<Gff> dlg(_services.resource.gffs.get(resRef, ResType::Dlg));
     if (!dlg) {
         warn("Game: conversation not found: " + resRef);
         return;
@@ -802,7 +749,7 @@ void Game::startDialog(const std::shared_ptr<Object> &owner, const std::string &
     setCursorType(CursorType::Default);
     changeScreen(Screen::Conversation);
 
-    auto dialog = _services.game.dialogs.get(resRef);
+    auto dialog = _services.resource.dialogs.get(resRef);
     bool computerConversation = dialog->conversationType == ConversationType::Computer;
     _conversation = computerConversation ? _computer.get() : static_cast<Conversation *>(_dialog.get());
     _conversation->start(dialog, owner);
@@ -840,7 +787,7 @@ void Game::loadInGameMenus() {
 void Game::changeScreen(Screen screen) {
     auto gui = getScreenGUI();
     if (gui) {
-        gui->resetFocus();
+        gui->clearSelection();
     }
     _screen = screen;
 }
@@ -878,12 +825,241 @@ void Game::onModuleSelected(const std::string &module) {
     _mainMenu->onModuleSelected(module);
 }
 
-void Game::drawHUD() {
-    _hud->draw();
+void Game::renderHUD() {
+    _hud->render();
 }
 
 CameraType Game::getConversationCamera(int &cameraId) const {
     return _conversation->getCamera(cameraId);
+}
+
+void Game::consoleInfo(const IConsole::TokenList &tokens) {
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        _console.printLine("No object is selected");
+        return;
+    }
+    glm::vec3 position(object->position());
+
+    std::stringstream ss;
+    ss << std::setprecision(2) << std::fixed
+       << "id=" << object->id()
+       << " "
+       << "tag=\"" << object->tag() << "\""
+       << " "
+       << "tpl=\"" << object->blueprintResRef() << "\""
+       << " "
+       << "pos=[" << position.x << ", " << position.y << ", " << position.z << "]";
+
+    switch (object->type()) {
+    case ObjectType::Creature: {
+        auto creature = std::static_pointer_cast<Creature>(object);
+        ss << " "
+           << "app=" << creature->appearance()
+           << " "
+           << "fac=" << static_cast<int>(creature->faction());
+        break;
+    }
+    case ObjectType::Placeable: {
+        auto placeable = std::static_pointer_cast<Placeable>(object);
+        ss << " "
+           << "app=" << placeable->appearance();
+        break;
+    }
+    default:
+        break;
+    }
+
+    _console.printLine(ss.str());
+}
+
+void Game::consoleListGlobals(const IConsole::TokenList &tokens) {
+    auto &strings = globalStrings();
+    for (auto &var : strings) {
+        _console.printLine(var.first + " = " + var.second);
+    }
+
+    auto &booleans = globalBooleans();
+    for (auto &var : booleans) {
+        _console.printLine(var.first + " = " + (var.second ? "true" : "false"));
+    }
+
+    auto &numbers = globalNumbers();
+    for (auto &var : numbers) {
+        _console.printLine(var.first + " = " + std::to_string(var.second));
+    }
+
+    auto &locations = globalLocations();
+    for (auto &var : locations) {
+        _console.printLine(str(boost::format("%s = (%.04f, %.04f, %.04f, %.04f") %
+                               var.first %
+                               var.second->position().x %
+                               var.second->position().y %
+                               var.second->position().z %
+                               var.second->facing()));
+    }
+}
+
+void Game::consoleListLocals(const IConsole::TokenList &tokens) {
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        _console.printLine("No object is selected");
+        return;
+    }
+
+    auto &booleans = object->localBooleans();
+    for (auto &var : booleans) {
+        _console.printLine(std::to_string(var.first) + " -> " + (var.second ? "true" : "false"));
+    }
+
+    auto &numbers = object->localNumbers();
+    for (auto &var : numbers) {
+        _console.printLine(std::to_string(var.first) + " -> " + std::to_string(var.second));
+    }
+}
+
+void Game::consoleListAnim(const IConsole::TokenList &tokens) {
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        object = party().getLeader();
+        if (!object) {
+            _console.printLine("No object is selected");
+            return;
+        }
+    }
+
+    std::string substr;
+    if (static_cast<int>(tokens.size()) > 1) {
+        substr = tokens[1];
+    }
+
+    auto model = std::static_pointer_cast<ModelSceneNode>(object->sceneNode());
+    std::vector<std::string> anims(model->model().getAnimationNames());
+    sort(anims.begin(), anims.end());
+
+    for (auto &anim : anims) {
+        if (substr.empty() || boost::contains(anim, substr)) {
+            _console.printLine(anim);
+        }
+    }
+}
+
+void Game::consolePlayAnim(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: playanim anim_name");
+        return;
+    }
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        object = party().getLeader();
+        if (!object) {
+            _console.printLine("No object is selected");
+            return;
+        }
+    }
+    auto model = std::static_pointer_cast<ModelSceneNode>(object->sceneNode());
+    model->playAnimation(tokens[1], nullptr, AnimationProperties::fromFlags(AnimationFlags::loop));
+}
+
+void Game::consoleKill(const IConsole::TokenList &tokens) {
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        _console.printLine("No object is selected");
+        return;
+    }
+    auto effect = newEffect<DamageEffect>(
+        100000,
+        DamageType::Universal,
+        DamagePower::Normal,
+        std::shared_ptr<Creature>());
+    object->applyEffect(std::move(effect), DurationType::Instant);
+}
+
+void Game::consoleAddItem(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: additem item_tpl [size]");
+        return;
+    }
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        object = party().getLeader();
+        if (!object) {
+            _console.printLine("No object is selected");
+            return;
+        }
+    }
+    int stackSize = static_cast<int>(tokens.size()) > 2 ? stoi(tokens[2]) : 1;
+    object->addItem(tokens[1], stackSize);
+}
+
+void Game::consoleGiveXP(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: givexp amount");
+        return;
+    }
+
+    auto object = module()->area()->selectedObject();
+    if (!object) {
+        object = party().getLeader();
+    }
+    if (!object || object->type() != ObjectType::Creature) {
+        _console.printLine("No creature is selected");
+        return;
+    }
+
+    int amount = stoi(tokens[1]);
+    std::static_pointer_cast<Creature>(object)->giveXP(amount);
+}
+
+void Game::consoleWarp(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: warp module");
+        return;
+    }
+    loadModule(tokens[1]);
+}
+
+void Game::consoleRunScript(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 3) {
+        _console.printLine("Usage: runscript resref caller_id [triggerrer_id [event_number [script_var]]], e.g. runscript k_ai_master 1 2 3 4");
+        return;
+    }
+
+    std::string resRef = tokens[1];
+    auto callerId = static_cast<uint32_t>(stoi(tokens[2]));
+    auto triggerrerId = tokens.size() > 3 ? static_cast<uint32_t>(stoi(tokens[3])) : kObjectInvalid;
+    int eventNumber = tokens.size() > 4 ? stoi(tokens[4]) : -1;
+    int scriptVar = tokens.size() > 5 ? stoi(tokens[5]) : -1;
+
+    int result = scriptRunner().run(resRef, callerId, triggerrerId, eventNumber, scriptVar);
+    _console.printLine(str(boost::format("%s -> %d") % resRef % result));
+}
+
+void Game::consoleShowAABB(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: showaabb 1|0");
+        return;
+    }
+    bool show = stoi(tokens[1]);
+    setShowAABB(show);
+}
+
+void Game::consoleShowWalkmesh(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: showwalkmesh 1|0");
+        return;
+    }
+    bool show = stoi(tokens[1]);
+    setShowWalkmesh(show);
+}
+
+void Game::consoleShowTriggers(const IConsole::TokenList &tokens) {
+    if (tokens.size() < 2) {
+        _console.printLine("Usage: showtriggers 1|0");
+        return;
+    }
+    bool show = stoi(tokens[1]);
+    setShowTriggers(show);
 }
 
 } // namespace game

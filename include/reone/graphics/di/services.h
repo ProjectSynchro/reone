@@ -21,54 +21,39 @@ namespace reone {
 
 namespace graphics {
 
-class IFonts;
-class IGraphicsContext;
-class ILips;
-class IMeshes;
-class IModels;
-class IPipeline;
-class IShaders;
-class ITextures;
+class IContext;
+class IMeshRegistry;
+class IPBRTextures;
+class IShaderRegistry;
+class IStatistic;
+class ITextureRegistry;
 class IUniforms;
-class IWalkmeshes;
 class IWindow;
 
 struct GraphicsServices {
-    IFonts &fonts;
-    IGraphicsContext &context;
-    ILips &lips;
-    IMeshes &meshes;
-    IModels &models;
-    IPipeline &pipeline;
-    IShaders &shaders;
-    ITextures &textures;
+    IContext &context;
+    IMeshRegistry &meshRegistry;
+    IPBRTextures &pbrTextures;
+    IShaderRegistry &shaderRegistry;
+    IStatistic &statistic;
+    ITextureRegistry &textureRegistry;
     IUniforms &uniforms;
-    IWalkmeshes &walkmeshes;
-    IWindow &window;
 
     GraphicsServices(
-        IFonts &fonts,
-        IGraphicsContext &context,
-        ILips &lips,
-        IMeshes &meshes,
-        IModels &models,
-        IPipeline &pipeline,
-        IShaders &shaders,
-        ITextures &textures,
-        IUniforms &uniforms,
-        IWalkmeshes &walkmeshes,
-        IWindow &window) :
-        fonts(fonts),
+        IContext &context,
+        IMeshRegistry &meshRegistry,
+        IPBRTextures &pbrTextures,
+        IShaderRegistry &shaderRegistry,
+        IStatistic &statistic,
+        ITextureRegistry &textureRegistry,
+        IUniforms &uniforms) :
         context(context),
-        lips(lips),
-        meshes(meshes),
-        models(models),
-        pipeline(pipeline),
-        shaders(shaders),
-        textures(textures),
-        uniforms(uniforms),
-        walkmeshes(walkmeshes),
-        window(window) {
+        meshRegistry(meshRegistry),
+        pbrTextures(pbrTextures),
+        shaderRegistry(shaderRegistry),
+        statistic(statistic),
+        textureRegistry(textureRegistry),
+        uniforms(uniforms) {
     }
 };
 

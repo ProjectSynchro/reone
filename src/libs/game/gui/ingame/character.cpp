@@ -24,8 +24,8 @@
 #include "reone/game/party.h"
 #include "reone/game/types.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
 #include "reone/gui/sceneinitializer.h"
+#include "reone/resource/provider/models.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
 
@@ -205,7 +205,7 @@ std::shared_ptr<ModelSceneNode> CharacterMenu::getSceneModel(ISceneGraph &sceneG
 
     for (auto &item : partyLeader->equipment()) {
         switch (item.first) {
-        case InventorySlot::body:
+        case InventorySlots::body:
             character->equip(item.first, item.second);
             break;
         default:
@@ -216,7 +216,7 @@ std::shared_ptr<ModelSceneNode> CharacterMenu::getSceneModel(ISceneGraph &sceneG
     character->loadAppearance();
     character->updateModelAnimation();
 
-    auto sceneModel = sceneGraph.newModel(*_services.graphics.models.get("charmain_light"), ModelUsage::GUI);
+    auto sceneModel = sceneGraph.newModel(*_services.resource.models.get("charmain_light"), ModelUsage::GUI);
     sceneModel->attach("charmain_light", *character->sceneNode());
 
     return sceneModel;

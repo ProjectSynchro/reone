@@ -35,21 +35,21 @@ class TriggerSceneNode : public SceneNode {
 public:
     TriggerSceneNode(
         std::vector<glm::vec3> geometry,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             SceneNodeType::Trigger,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _geometry(std::move(geometry)) {
-
-        init();
     }
 
     void init();
-    void draw();
+    void render(IRenderPass &pass);
 
     bool isIn(const glm::vec2 &pt) const;
 

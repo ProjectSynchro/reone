@@ -17,13 +17,17 @@
 
 #pragma once
 
-#include "reone/system/types.h"
-
 namespace reone {
+
+namespace audio {
+
+class AudioClip;
+
+}
 
 namespace resource {
 
-enum class ResourceType : uint16_t {
+enum class ResType : uint16_t {
     Res = 0,
     Bmp = 1,
     Tga = 3,
@@ -39,7 +43,7 @@ enum class ResourceType : uint16_t {
     Ifo = 2014,
     Bic = 2015,
     Wok = 2016,
-    TwoDa = 2017,
+    TwoDA = 2017,
     Tlk = 2018,
     Txi = 2022,
     Git = 2023,
@@ -88,6 +92,66 @@ enum class ResourceType : uint16_t {
 
     Invalid = 0xffff
 };
+
+enum class GameID {
+    KotOR,
+    TSL
+};
+
+enum class ConversationType {
+    Cinematic = 0,
+    Computer = 1
+};
+
+enum class ComputerType {
+    Normal = 0,
+    Rakatan = 1
+};
+
+enum class SoundSetEntry {
+    BattleCry1 = 0,
+    BattleCry2 = 1,
+    BattleCry3 = 2,
+    BattleCry4 = 3,
+    BattleCry5 = 4,
+    BattleCry6 = 5,
+    Select1 = 6,
+    Select2 = 7,
+    Select3 = 8,
+    AttackGrunt1 = 9,
+    AttackGrunt2 = 10,
+    AttackGrunt3 = 11,
+    PainGrunt1 = 12,
+    PainGrunt2 = 13,
+    LowHealth = 14,
+    Dead = 15,
+    CriticalHit = 16,
+    TargetImmune = 17,
+    LayMine = 18,
+    DisarmMine = 19,
+    BeginStealth = 20,
+    BeginSearch = 21,
+    BeginUnlock = 22,
+    UnlockFailed = 23,
+    UnlockSuccess = 24,
+    SeparatedFromParty = 25,
+    RejoinParty = 26,
+    Poisoned = 27
+};
+
+enum class CursorType {
+    None,
+    Default,
+    Attack,
+    Door,
+    Talk,
+    Pickup,
+    DisableMine,
+    RecoverMine
+};
+
+using Visibility = std::multimap<std::string, std::string>;
+using SoundSet = std::unordered_map<SoundSetEntry, std::shared_ptr<reone::audio::AudioClip>>;
 
 } // namespace resource
 

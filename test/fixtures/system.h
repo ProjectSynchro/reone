@@ -27,17 +27,16 @@ namespace reone {
 
 class MockClock : public IClock, boost::noncopyable {
 public:
-    uint32_t ticks() const override {
+    void init() override {
+    }
+
+    uint32_t millis() const override {
         return 0;
     }
 
-    uint64_t performanceFrequency() const override {
+    uint64_t micros() const override {
         return 0;
     }
-
-    uint64_t performanceCounter() const override {
-        return 0;
-    };
 };
 
 class MockThreadPool : public IThreadPool, boost::noncopyable {

@@ -26,10 +26,10 @@
 #include "reone/game/party.h"
 #include "reone/game/reputes.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/exception/format.h"
 #include "reone/resource/exception/notfound.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/gffs.h"
 #include "reone/resource/resources.h"
+#include "reone/system/exception/validation.h"
 #include "reone/system/logutil.h"
 
 using namespace reone::graphics;
@@ -43,7 +43,7 @@ namespace game {
 void Module::load(std::string name, const Gff &ifo, bool fromSave) {
     _name = std::move(name);
 
-    auto ifoParsed = schema::parseIFO(ifo);
+    auto ifoParsed = resource::generated::parseIFO(ifo);
     loadInfo(ifoParsed);
     loadArea(ifoParsed);
 
@@ -56,12 +56,12 @@ void Module::load(std::string name, const Gff &ifo, bool fromSave) {
     }
 }
 
-void Module::loadInfo(const schema::IFO &ifo) {
+void Module::loadInfo(const resource::generated::IFO &ifo) {
     // Entry location
 
     _info.entryArea = ifo.Mod_Entry_Area;
     if (_info.entryArea.empty()) {
-        throw FormatException("Mod_Entry_Area must not be empty");
+        throw ValidationException("Mod_Entry_Area must not be empty");
     }
 
     _info.entryPosition.x = ifo.Mod_Entry_X;
@@ -73,17 +73,17 @@ void Module::loadInfo(const schema::IFO &ifo) {
     _info.entryFacing = -glm::atan(dirX, dirY);
 }
 
-void Module::loadArea(const schema::IFO &ifo, bool fromSave) {
+void Module::loadArea(const resource::generated::IFO &ifo, bool fromSave) {
     reone::info("Load area '" + _info.entryArea + "'");
 
     _area = _game.newArea();
 
-    std::shared_ptr<Gff> are(_services.resource.gffs.get(_info.entryArea, ResourceType::Are));
+    std::shared_ptr<Gff> are(_services.resource.gffs.get(_info.entryArea, ResType::Are));
     if (!are) {
         throw ResourceNotFoundException("Area ARE not found: " + _info.entryArea);
     }
 
-    std::shared_ptr<Gff> git(_services.resource.gffs.get(_info.entryArea, ResourceType::Git));
+    std::shared_ptr<Gff> git(_services.resource.gffs.get(_info.entryArea, ResType::Git));
     if (!git) {
         throw ResourceNotFoundException("Area GIT not found: " + _info.entryArea);
     }
@@ -122,22 +122,22 @@ void Module::getEntryPoint(const std::string &waypoint, glm::vec3 &position, flo
     }
 }
 
-bool Module::handle(const SDL_Event &event) {
+bool Module::handle(const input::Event &event) {
     if (_player && _player->handle(event))
         return true;
     if (_area->handle(event))
         return true;
 
     switch (event.type) {
-    case SDL_MOUSEMOTION:
+    case input::EventType::MouseMotion:
         if (handleMouseMotion(event.motion))
             return true;
         break;
-    case SDL_MOUSEBUTTONDOWN:
+    case input::EventType::MouseButtonDown:
         if (handleMouseButtonDown(event.button))
             return true;
         break;
-    case SDL_KEYDOWN:
+    case input::EventType::KeyDown:
         if (handleKeyDown(event.key))
             return true;
         break;
@@ -148,7 +148,7 @@ bool Module::handle(const SDL_Event &event) {
     return false;
 }
 
-bool Module::handleMouseMotion(const SDL_MouseMotionEvent &event) {
+bool Module::handleMouseMotion(const input::MouseMotionEvent &event) {
     CursorType cursor = CursorType::Default;
 
     auto object = _area->getObjectAt(event.x, event.y);
@@ -185,8 +185,8 @@ bool Module::handleMouseMotion(const SDL_MouseMotionEvent &event) {
     return true;
 }
 
-bool Module::handleMouseButtonDown(const SDL_MouseButtonEvent &event) {
-    if (event.button != SDL_BUTTON_LEFT) {
+bool Module::handleMouseButtonDown(const input::MouseButtonEvent &event) {
+    if (event.button != input::MouseButton::Left) {
         return false;
     }
     auto object = _area->getObjectAt(event.x, event.y);
@@ -221,7 +221,7 @@ void Module::onObjectClick(const std::shared_ptr<Object> &object) {
 }
 
 void Module::onCreatureClick(const std::shared_ptr<Creature> &creature) {
-    debug(boost::format("Module: click: creature '%s', faction %d") % creature->tag() % static_cast<int>(creature->faction()));
+    debug(str(boost::format("Module: click: creature '%s', faction %d") % creature->tag() % static_cast<int>(creature->faction())));
 
     std::shared_ptr<Creature> partyLeader(_game.party().getLeader());
 
@@ -286,7 +286,7 @@ std::vector<ContextAction> Module::getContextActions(const std::shared_ptr<Objec
         auto creature = std::static_pointer_cast<Creature>(object);
         if (!creature->isDead() && _services.game.reputes.getIsEnemy(*leader, *creature)) {
             actions.push_back(ContextAction(ActionType::AttackObject));
-            auto weapon = leader->getEquippedItem(InventorySlot::rightWeapon);
+            auto weapon = leader->getEquippedItem(InventorySlots::rightWeapon);
             if (weapon && weapon->isRanged()) {
                 if (leader->attributes().hasFeat(FeatType::MasterPowerBlast)) {
                     actions.push_back(ContextAction(FeatType::MasterPowerBlast));
@@ -349,9 +349,9 @@ std::vector<ContextAction> Module::getContextActions(const std::shared_ptr<Objec
     return actions;
 }
 
-bool Module::handleKeyDown(const SDL_KeyboardEvent &event) {
-    switch (event.keysym.sym) {
-    case SDLK_SPACE: {
+bool Module::handleKeyDown(const input::KeyEvent &event) {
+    switch (event.code) {
+    case input::KeyCode::Space: {
         bool paused = !_game.isPaused();
         _game.setPaused(paused);
         return true;

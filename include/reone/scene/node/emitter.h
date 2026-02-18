@@ -32,24 +32,24 @@ class EmitterSceneNode : public ModelNodeSceneNode {
 public:
     EmitterSceneNode(
         graphics::ModelNode &modelNode,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         ModelNodeSceneNode(
             modelNode,
             SceneNodeType::Emitter,
             sceneGraph,
             graphicsSvc,
-            audioSvc) {
-
-        init();
+            audioSvc,
+            resourceSvc) {
     }
 
     void init();
 
     void update(float dt) override;
 
-    void drawLeafs(const std::vector<SceneNode *> &leafs) override;
+    void renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) override;
 
     void detonate();
 

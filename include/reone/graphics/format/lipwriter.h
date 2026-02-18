@@ -25,12 +25,12 @@ namespace graphics {
 
 class LipWriter {
 public:
-    LipWriter(LipAnimation &&animation);
+    LipWriter(LipAnimation &animation);
 
     void save(const std::filesystem::path &path);
 
 private:
-    LipAnimation _animation;
+    LipAnimation &_animation;
 };
 
 } // namespace graphics

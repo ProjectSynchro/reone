@@ -17,9 +17,9 @@
 
 #include "reone/game/d20/feats.h"
 
-#include "reone/graphics/textures.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/strings.h"
 
 using namespace reone::graphics;
@@ -30,7 +30,7 @@ namespace reone {
 namespace game {
 
 void Feats::init() {
-    std::shared_ptr<TwoDa> feats(_twoDas.get("feat"));
+    std::shared_ptr<TwoDA> feats(_twoDas.get("feat"));
     if (!feats) {
         return;
     }
@@ -39,11 +39,11 @@ void Feats::init() {
         std::string name(_strings.getText(feats->getInt(row, "name", -1)));
         std::string description(_strings.getText(feats->getInt(row, "description", -1)));
         std::shared_ptr<Texture> icon(_textures.get(feats->getString(row, "icon"), TextureUsage::GUI));
-        uint32_t minCharLevel = feats->getUint(row, "mincharlevel");
-        auto preReqFeat1 = static_cast<FeatType>(feats->getUint(row, "prereqfeat1"));
-        auto preReqFeat2 = static_cast<FeatType>(feats->getUint(row, "prereqfeat2"));
-        auto successor = static_cast<FeatType>(feats->getUint(row, "successor"));
-        uint32_t pips = feats->getUint(row, "pips");
+        uint32_t minCharLevel = feats->getHexInt(row, "mincharlevel");
+        auto preReqFeat1 = static_cast<FeatType>(feats->getHexInt(row, "prereqfeat1"));
+        auto preReqFeat2 = static_cast<FeatType>(feats->getHexInt(row, "prereqfeat2"));
+        auto successor = static_cast<FeatType>(feats->getHexInt(row, "successor"));
+        uint32_t pips = feats->getHexInt(row, "pips");
 
         auto feat = std::make_shared<Feat>();
         feat->name = std::move(name);

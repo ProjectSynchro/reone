@@ -18,7 +18,7 @@
 #include "reone/game/reputes.h"
 
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
 
 #include "reone/game/object/creature.h"
 
@@ -34,7 +34,7 @@ static std::vector<std::string> g_factionLabels;
 static std::vector<std::vector<int>> g_factionValues;
 
 void Reputes::init() {
-    std::shared_ptr<TwoDa> repute(_twoDas.get("repute"));
+    std::shared_ptr<TwoDA> repute(_twoDas.get("repute"));
     if (!repute) {
         return;
     }

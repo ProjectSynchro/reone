@@ -24,11 +24,11 @@
 #include "reone/game/portraits.h"
 #include "reone/game/types.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/textures.h"
 #include "reone/gui/control/button.h"
 #include "reone/gui/control/label.h"
 #include "reone/gui/sceneinitializer.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/resources.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
@@ -117,7 +117,6 @@ std::shared_ptr<ModelSceneNode> PortraitSelection::getCharacterModel(ISceneGraph
     creature->setAppearance(getAppearanceFromCurrentPortrait());
     creature->equip("g_a_clothes01");
     creature->loadAppearance();
-    creature->sceneNode()->setCullable(false);
     creature->updateModelAnimation();
 
     // Attach creature model to the root scene node
@@ -125,9 +124,9 @@ std::shared_ptr<ModelSceneNode> PortraitSelection::getCharacterModel(ISceneGraph
     auto creatureModel = std::static_pointer_cast<ModelSceneNode>(creature->sceneNode());
     auto cameraHook = creatureModel->getNodeByName("camerahook");
     if (cameraHook) {
-        creature->setPosition(glm::vec3(0.0f, 0.0f, -cameraHook->getOrigin().z));
+        creature->setPosition(glm::vec3(0.0f, 0.0f, -cameraHook->origin().z));
     }
-    auto model = sceneGraph.newModel(*_services.graphics.models.get("cghead_light"), ModelUsage::GUI);
+    auto model = sceneGraph.newModel(*_services.resource.models.get("cghead_light"), ModelUsage::GUI);
     model->attach("cghead_light", *creatureModel);
 
     return model;
@@ -173,7 +172,7 @@ void PortraitSelection::resetCurrentPortrait() {
 
 void PortraitSelection::loadCurrentPortrait() {
     std::string resRef(_filteredPortraits[_currentPortrait].resRef);
-    std::shared_ptr<Texture> portrait(_services.graphics.textures.get(resRef, TextureUsage::GUI));
+    std::shared_ptr<Texture> portrait(_services.resource.textures.get(resRef, TextureUsage::GUI));
     _controls.LBL_PORTRAIT->setBorderFill(portrait);
 }
 

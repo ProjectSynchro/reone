@@ -19,16 +19,18 @@
 
 namespace reone {
 
-uint32_t Clock::ticks() const {
-    return SDL_GetTicks();
+void Clock::init() {
+    auto freq = SDL_GetPerformanceFrequency();
+    _freqOver1e3 = freq / 1000;
+    _freqOver1e6 = freq / 1000000;
 }
 
-uint64_t Clock::performanceFrequency() const {
-    return SDL_GetPerformanceFrequency();
+uint32_t Clock::millis() const {
+    return SDL_GetPerformanceCounter() / _freqOver1e3;
 }
 
-uint64_t Clock::performanceCounter() const {
-    return SDL_GetPerformanceCounter();
+uint64_t Clock::micros() const {
+    return SDL_GetPerformanceCounter() / _freqOver1e6;
 }
 
 } // namespace reone

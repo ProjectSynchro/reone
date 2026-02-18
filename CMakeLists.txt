@@ -21,10 +21,10 @@ set(CLANG_FORMAT_PATH ${CMAKE_SOURCE_DIR}/.clang-format)
 
 # Options
 
-option(BUILD_CODEGEN "build codegen application" ON)
-option(BUILD_TOOLKIT "build toolkit application" ON)
-option(BUILD_LAUNCHER "build launcher application" ON)
 option(BUILD_TESTS "build tests" ON)
+option(BUILD_LAUNCHER "build launcher application" ON)
+option(BUILD_TOOLKIT "build toolkit application" ON)
+option(BUILD_DATAMINER "build dataminer application" ON)
 
 option(ENABLE_MOVIE "enable movie playback" ON)
 option(ENABLE_ASAN "enable address sanitizer" OFF)
@@ -34,7 +34,7 @@ option(ENABLE_ASAN "enable address sanitizer" OFF)
 # Dependencies
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Boost REQUIRED COMPONENTS filesystem log program_options system thread)
+find_package(Boost REQUIRED COMPONENTS program_options exception)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(MAD REQUIRED)
@@ -64,7 +64,7 @@ if(BUILD_LAUNCHER OR BUILD_TOOLKIT)
 endif()
 
 set(REONE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
-include_directories(${Boost_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS} ${MAD_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/extern/glm ${CMAKE_SOURCE_DIR}/extern/tinyxml2 ${REONE_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS} ${MAD_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/extern/glm ${REONE_INCLUDE_DIR})
 
 add_compile_definitions(BOOST_BIND_GLOBAL_PLACEHOLDERS)
 
@@ -76,8 +76,13 @@ endif()
 
 # Compile options
 
-if(ENABLE_ASAN AND MSVC)
-    add_compile_options("/fsanitize=address")
+if(ENABLE_ASAN)
+    if (MSVC)
+        add_compile_options("/fsanitize=address")
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    endif()
 endif()
 
 # END Compile options
@@ -88,31 +93,31 @@ add_subdirectory(src/libs/system) # system static library
 add_subdirectory(src/libs/resource) # resource static library
 add_subdirectory(src/libs/graphics) # graphics static library
 add_subdirectory(src/libs/audio) # audio static library
+add_subdirectory(src/libs/input) # input static library
 add_subdirectory(src/libs/gui) # gui static library
 add_subdirectory(src/libs/scene) # scene static library
 add_subdirectory(src/libs/movie) # movie static library
 add_subdirectory(src/libs/script) # script static library
 add_subdirectory(src/libs/game) # game static library
 add_subdirectory(src/libs/tools) # tools static library
-add_subdirectory(extern/tinyxml2) # tinyxml2 static library
 
 # END Libraries
 
 # Applications
 
 add_subdirectory(src/apps/shaderpack) # shaderpack application
-add_subdirectory(src/apps/reone) # reone application
+add_subdirectory(src/apps/engine) # engine application
 
-if(BUILD_CODEGEN)
-    add_subdirectory(src/apps/codegen) # codegen application
+if(BUILD_LAUNCHER)
+    add_subdirectory(src/apps/launcher) # launcher application
 endif()
 
 if(BUILD_TOOLKIT)
     add_subdirectory(src/apps/toolkit) # toolkit application
 endif()
 
-if(BUILD_LAUNCHER)
-    add_subdirectory(src/apps/launcher) # launcher application
+if(BUILD_DATAMINER)
+    add_subdirectory(src/apps/dataminer) # dataminer application
 endif()
 
 if(BUILD_TESTS)

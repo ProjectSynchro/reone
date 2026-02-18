@@ -18,6 +18,7 @@
 #include "reone/graphics/textureutil.h"
 
 #include "reone/graphics/dxtutil.h"
+#include "reone/system/checkutil.h"
 
 namespace reone {
 
@@ -60,34 +61,7 @@ static void decompressLayer(int width, int height, Texture::Layer &layer, PixelF
     dstFormat = alpha ? PixelFormat::RGBA8 : PixelFormat::RGB8;
 }
 
-static void rotateLayer90(int width, int height, Texture::Layer &layer, int bpp) {
-    if (width != height) {
-        throw std::invalid_argument(str(boost::format("Invalid texture size: width=%d, height=%d") % width % height));
-    }
-    size_t n = width;
-    size_t w = n / 2;
-    size_t h = (n + 1) / 2;
-    uint8_t *pixels = reinterpret_cast<uint8_t *>(layer.pixels->data());
-
-    for (size_t x = 0; x < w; ++x) {
-        for (size_t y = 0; y < h; ++y) {
-            const size_t d0 = (y * n + x) * bpp;
-            const size_t d1 = ((n - 1 - x) * n + y) * bpp;
-            const size_t d2 = ((n - 1 - y) * n + (n - 1 - x)) * bpp;
-            const size_t d3 = (x * n + (n - 1 - y)) * bpp;
-
-            for (size_t p = 0; p < static_cast<size_t>(bpp); ++p) {
-                uint8_t tmp = pixels[d0 + p];
-                pixels[d0 + p] = pixels[d1 + p];
-                pixels[d1 + p] = pixels[d2 + p];
-                pixels[d2 + p] = pixels[d3 + p];
-                pixels[d3 + p] = tmp;
-            }
-        }
-    }
-}
-
-static int getBitsPerPixel(PixelFormat format) {
+static int getBytesPerPixel(PixelFormat format) {
     switch (format) {
     case PixelFormat::R8:
         return 1;
@@ -102,33 +76,44 @@ static int getBitsPerPixel(PixelFormat format) {
     }
 }
 
-void prepareCubemap(Texture &texture) {
-    static constexpr int rotations[] = {1, 3, 0, 2, 2, 0};
-
-    PixelFormat srcFormat = texture.pixelFormat();
-    PixelFormat dstFormat = texture.pixelFormat();
-    bool compressed = isCompressed(srcFormat);
-
-    auto &layers = texture.layers();
-    int numLayers = static_cast<int>(layers.size());
-    if (numLayers == kNumCubeFaces) {
-        std::swap(layers[0], layers[1]);
-        for (int i = 0; i < kNumCubeFaces; ++i) {
-            auto &layer = layers[i];
-            if (!layer.pixels) {
-                throw std::invalid_argument(str(boost::format("Layer %d of texture '%s' is empty") % i % texture.name()));
-            }
-            if (compressed) {
-                decompressLayer(texture.width(), texture.height(), layer, srcFormat, dstFormat);
-                texture.setPixelFormat(dstFormat);
-            }
-            for (int j = 0; j < rotations[i]; ++j) {
-                rotateLayer90(texture.width(), texture.height(), layer, getBitsPerPixel(dstFormat));
+void convertGridTextureToArray(Texture &texture, int numX, int numY) {
+    checkEqual("layers size", static_cast<int>(texture.layers().size()), 1);
+    if (isCompressed(texture.pixelFormat())) {
+        PixelFormat newFormat;
+        decompressLayer(
+            texture.width(),
+            texture.height(),
+            texture.layers().front(),
+            texture.pixelFormat(),
+            newFormat);
+        texture.setPixelFormat(newFormat);
+    }
+    auto gridPixels = *texture.layers().front().pixels;
+    glm::ivec2 frameSize {texture.width() / numX, texture.height() / numY};
+    std::vector<Texture::Layer> frameLayers;
+    int bytesPerPixel = getBytesPerPixel(texture.pixelFormat());
+    size_t framePixelsSize = frameSize.x * frameSize.y * bytesPerPixel;
+    for (int i = 0; i < numX * numY; ++i) {
+        auto framePixels = std::make_shared<ByteBuffer>();
+        framePixels->resize(framePixelsSize);
+        for (int x = 0; x < frameSize.x; ++x) {
+            for (int y = 0; y < frameSize.y; ++y) {
+                int srcRowsToSkip = (i / numX) * frameSize.y + y;
+                int srcColsToSkip = (i % numX) * frameSize.x + x;
+                int srcPixelIdx = srcRowsToSkip * texture.width() + srcColsToSkip;
+                auto srcPixel = &gridPixels[srcPixelIdx * bytesPerPixel];
+                int dstPixelIdx = (y * frameSize.x + x);
+                auto dstPixel = &(*framePixels)[dstPixelIdx * bytesPerPixel];
+                std::memcpy(dstPixel, srcPixel, bytesPerPixel);
             }
         }
-    } else {
-        throw std::invalid_argument(str(boost::format("Texture '%s' has %d layers, %d expected") % texture.name() % numLayers % kNumCubeFaces));
+        frameLayers.push_back(Texture::Layer {std::move(framePixels)});
     }
+    texture.setType(TextureType::TwoDimArray);
+    texture.setPixels(
+        frameSize.x, frameSize.y,
+        texture.pixelFormat(),
+        std::move(frameLayers));
 }
 
 Texture::Properties getTextureProperties(TextureUsage usage) {
@@ -148,7 +133,6 @@ Texture::Properties getTextureProperties(TextureUsage usage) {
         properties.wrap = Texture::Wrapping::ClampToEdge;
 
     } else if (usage == TextureUsage::BumpMap) {
-        properties.minFilter = Texture::Filtering::Linear;
 
     } else if (usage == TextureUsage::GUI || usage == TextureUsage::Movie) {
         properties.minFilter = Texture::Filtering::Linear;

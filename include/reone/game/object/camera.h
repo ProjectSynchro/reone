@@ -17,8 +17,10 @@
 
 #pragma once
 
+#include "reone/input/event.h"
+#include "reone/resource/parser/gff/git.h"
+
 #include "../object.h"
-#include "../schema/git.h"
 
 namespace reone {
 
@@ -39,7 +41,7 @@ public:
             services) {
     }
 
-    virtual bool handle(const SDL_Event &event) {
+    virtual bool handle(const input::Event &event) {
         return false;
     }
 

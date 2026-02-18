@@ -38,7 +38,7 @@ public:
 
     void load();
 
-    std::shared_ptr<graphics::Texture> texture() const { return _texture; }
+    std::shared_ptr<Texture> texture() const { return _texture; }
 
 private:
     BinaryReader _tga;

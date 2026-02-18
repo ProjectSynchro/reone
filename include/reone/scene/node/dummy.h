@@ -27,15 +27,17 @@ class DummySceneNode : public ModelNodeSceneNode {
 public:
     DummySceneNode(
         graphics::ModelNode &modelNode,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         ModelNodeSceneNode(
             modelNode,
             SceneNodeType::Dummy,
             sceneGraph,
             graphicsSvc,
-            audioSvc) {
+            audioSvc,
+            resourceSvc) {
     }
 };
 

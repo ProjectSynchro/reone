@@ -21,168 +21,138 @@
 
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/fonts.h"
-#include "reone/graphics/lips.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/pipeline.h"
-#include "reone/graphics/shaders.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/framebuffer.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/pbrtextures.h"
+#include "reone/graphics/shaderregistry.h"
+#include "reone/graphics/statistic.h"
+#include "reone/graphics/textureregistry.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/walkmeshes.h"
-#include "reone/graphics/window.h"
 #include "reone/system/exception/notimplemented.h"
 
 namespace reone {
 
 namespace graphics {
 
-class MockFonts : public IFonts, boost::noncopyable {
-public:
-    MOCK_METHOD(void, clear, (), (override));
-    MOCK_METHOD(std::shared_ptr<Font>, get, (const std::string &key), (override));
-};
-
-class MockGraphicsContext : public IGraphicsContext, boost::noncopyable {
+class MockContext : public IContext, boost::noncopyable {
 public:
     MOCK_METHOD(void, clearColor, (glm::vec4 color), (override));
     MOCK_METHOD(void, clearDepth, (), (override));
     MOCK_METHOD(void, clearColorDepth, (glm::vec4 color), (override));
 
-    MOCK_METHOD(void, withDepthTest, (DepthTestMode mode, const std::function<void()> &block), (override));
-    MOCK_METHOD(void, withFaceCulling, (CullFaceMode mode, const std::function<void()> &block), (override));
-    MOCK_METHOD(void, withBlending, (BlendMode mode, const std::function<void()> &block), (override));
-    MOCK_METHOD(void, withPolygonMode, (PolygonMode mode, const std::function<void()> &block), (override));
-    MOCK_METHOD(void, withViewport, (glm::ivec4 viewport, const std::function<void()> &block), (override));
-    MOCK_METHOD(void, withScissorTest, (const glm::ivec4 &bounds, const std::function<void()> &block), (override));
+    MOCK_METHOD(void, resetProgram, (), (override));
+    MOCK_METHOD(void, useProgram, (ShaderProgram &), (override));
+
+    MOCK_METHOD(void, resetDrawFramebuffer, (), (override));
+    MOCK_METHOD(void, resetReadFramebuffer, (), (override));
+    MOCK_METHOD(void, bindDrawFramebuffer, (Framebuffer &, std::vector<int>), (override));
+    MOCK_METHOD(void, bindReadFramebuffer, (Framebuffer &, std::optional<int>), (override));
+    MOCK_METHOD(void, blitFramebuffer, (Framebuffer &, Framebuffer &, const glm::ivec4 &, const glm::ivec4 &, int, int, int, FramebufferBlitFilter), (override));
+
+    MOCK_METHOD(void, bindUniformBuffer, (UniformBuffer &, int), (override));
+    MOCK_METHOD(void, bindTexture, (Texture &, int), (override));
+
+    MOCK_METHOD(const glm::ivec4 &, viewport, (), (const override));
+    MOCK_METHOD(DepthTestMode, depthTestMode, (), (const override));
+    MOCK_METHOD(bool, depthMask, (), (const override));
+    MOCK_METHOD(PolygonMode, polygonMode, (), (const override));
+    MOCK_METHOD(FaceCullMode, faceCullMode, (), (const override));
+    MOCK_METHOD(BlendMode, blendMode, (), (const override));
+
+    MOCK_METHOD(void, pushViewport, (glm::ivec4), (override));
+    MOCK_METHOD(void, pushDepthTestMode, (DepthTestMode), (override));
+    MOCK_METHOD(void, pushDepthMask, (bool), (override));
+    MOCK_METHOD(void, pushPolygonMode, (PolygonMode), (override));
+    MOCK_METHOD(void, pushFaceCullMode, (FaceCullMode), (override));
+    MOCK_METHOD(void, pushBlendMode, (BlendMode), (override));
+
+    MOCK_METHOD(void, popViewport, (), (override));
+    MOCK_METHOD(void, popDepthTestMode, (), (override));
+    MOCK_METHOD(void, popDepthMask, (), (override));
+    MOCK_METHOD(void, popPolygonMode, (), (override));
+    MOCK_METHOD(void, popFaceCullMode, (), (override));
+    MOCK_METHOD(void, popBlendMode, (), (override));
+
+    MOCK_METHOD(void, withViewport, (glm::ivec4, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withScissorTest, (const glm::ivec4 &, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withDepthTestMode, (DepthTestMode, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withDepthMask, (bool, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withPolygonMode, (PolygonMode, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withFaceCullMode, (FaceCullMode, const std::function<void()> &), (override));
+    MOCK_METHOD(void, withBlendMode, (BlendMode, const std::function<void()> &), (override));
 };
 
-class MockLips : public ILips, boost::noncopyable {
+class MockMeshRegistry : public IMeshRegistry, boost::noncopyable {
 public:
-    MOCK_METHOD(void, clear, (), (override));
-    MOCK_METHOD(std::shared_ptr<LipAnimation>, get, (const std::string &key), (override));
+    MOCK_METHOD(Mesh &, get, (const std::string &), (override));
 };
 
-class MockMeshes : public IMeshes, boost::noncopyable {
+class MockPBRTextures : public IPBRTextures, boost::noncopyable {
 public:
-    MOCK_METHOD(Mesh &, quad, (), (const override));
-    MOCK_METHOD(Mesh &, quadNDC, (), (const override));
-    MOCK_METHOD(Mesh &, billboard, (), (const override));
-    MOCK_METHOD(Mesh &, grass, (), (const override));
-
-    MOCK_METHOD(Mesh &, box, (), (const override));
-    MOCK_METHOD(Mesh &, cubemap, (), (const override));
+    MOCK_METHOD(void, refresh, (), (override));
+    MOCK_METHOD(void, requestEnvMapDerived, (EnvMapDerivedRequest), (override));
+    MOCK_METHOD(Texture &, brdf, (), (override));
+    MOCK_METHOD(std::optional<int>, findEnvMapDerivedLayer, (const std::string &), (override));
 };
 
-class MockModels : public IModels, boost::noncopyable {
+class MockShaderRegistry : public IShaderRegistry, boost::noncopyable {
 public:
-    MOCK_METHOD(std::shared_ptr<Model>, get, (const std::string &resRef), (override));
+    MOCK_METHOD(ShaderProgram &, get, (const std::string &), (override));
 };
 
-class MockPipeline : public IPipeline, boost::noncopyable {
+class MockStatistic : public IStatistic, boost::noncopyable {
 public:
-    MOCK_METHOD(std::shared_ptr<Texture>, draw, (IScene & scene, const glm::ivec2 &dim), (override));
+    MOCK_METHOD(void, resetDrawCalls, (), (override));
+    MOCK_METHOD(void, incrementDrawCalls, (), (override));
+    MOCK_METHOD(int, numDrawCalls, (), (const override));
 };
 
-class MockShaders : public IShaders, boost::noncopyable {
+class MockTextureRegistry : public ITextureRegistry,
+                            boost::noncopyable {
 public:
-    MOCK_METHOD(void, use, (ShaderProgramId programId), (override));
-};
-
-class MockTextures : public ITextures, boost::noncopyable {
-public:
-    MOCK_METHOD(void, clear, (), (override));
-
-    MOCK_METHOD(void, bind, (Texture & texture, int unit), (override));
-    MOCK_METHOD(void, bindBuiltIn, (), (override));
-
-    MOCK_METHOD(std::shared_ptr<Texture>, get, (const std::string &resRef, TextureUsage usage), (override));
-
-    // Built-in
-
-    MOCK_METHOD(std::shared_ptr<Texture>, default2DRGB, (), (const override));
-    MOCK_METHOD(std::shared_ptr<Texture>, defaultArrayDepth, (), (const override));
-    MOCK_METHOD(std::shared_ptr<Texture>, defaultCubemapRGB, (), (const override));
-    MOCK_METHOD(std::shared_ptr<Texture>, defaultCubemapDepth, (), (const override));
-
-    MOCK_METHOD(std::shared_ptr<Texture>, noiseRG, (), (const override));
-    MOCK_METHOD(std::shared_ptr<Texture>, ssaoRGB, (), (const override));
-    MOCK_METHOD(std::shared_ptr<Texture>, ssrRGBA, (), (const override));
-
-    // END Built-in
+    MOCK_METHOD(Texture &, get, (const std::string &), (override));
 };
 
 class MockUniforms : public IUniforms, boost::noncopyable {
 public:
-    MOCK_METHOD(void, setGeneral, (const std::function<void(GeneralUniforms &)> &block), (override));
-    MOCK_METHOD(void, setText, (const std::function<void(TextUniforms &)> &block), (override));
-    MOCK_METHOD(void, setLighting, (const std::function<void(LightingUniforms &)> &block), (override));
-    MOCK_METHOD(void, setSkeletal, (const std::function<void(SkeletalUniforms &)> &block), (override));
-    MOCK_METHOD(void, setParticles, (const std::function<void(ParticlesUniforms &)> &block), (override));
-    MOCK_METHOD(void, setGrass, (const std::function<void(GrassUniforms &)> &block), (override));
-    MOCK_METHOD(void, setSSAO, (const std::function<void(SSAOUniforms &)> &block), (override));
-    MOCK_METHOD(void, setWalkmesh, (const std::function<void(WalkmeshUniforms &)> &block), (override));
-    MOCK_METHOD(void, setPoints, (const std::function<void(PointsUniforms &)> &block), (override));
-};
-
-class MockWalkmeshes : public IWalkmeshes, boost::noncopyable {
-public:
-    MOCK_METHOD(void, clear, (), (override));
-
-    MOCK_METHOD(std::shared_ptr<Walkmesh>, get, (const std::string &resRef, resource::ResourceType type), (override));
-};
-
-class MockWindow : public IWindow, boost::noncopyable {
-public:
-    MOCK_METHOD(void, processEvents, (bool &quit), (override));
-    MOCK_METHOD(void, swapBuffers, (), (const override));
-    MOCK_METHOD(bool, isInFocus, (), (const override));
-    MOCK_METHOD(glm::mat4, getOrthoProjection, (float near, float far), (const override));
-    MOCK_METHOD(void, setEventHandler, (IEventHandler * eventHandler), (override));
-    MOCK_METHOD(void, setRelativeMouseMode, (bool enabled), (override));
-    MOCK_METHOD(uint32_t, mouseState, (int *x, int *y), (override));
-    MOCK_METHOD(void, showCursor, (bool show), (override));
+    MOCK_METHOD(void, setGlobals, (const std::function<void(GlobalUniforms &)> &), (override));
+    MOCK_METHOD(void, setLocals, (const std::function<void(LocalUniforms &)> &), (override));
+    MOCK_METHOD(void, setBones, (const std::function<void(BoneUniforms &)> &), (override));
+    MOCK_METHOD(void, setDangly, (const std::function<void(DanglyUniforms &)> &), (override));
+    MOCK_METHOD(void, setParticles, (const std::function<void(ParticleUniforms &)> &), (override));
+    MOCK_METHOD(void, setGrass, (const std::function<void(GrassUniforms &)> &), (override));
+    MOCK_METHOD(void, setWalkmesh, (const std::function<void(WalkmeshUniforms &)> &), (override));
+    MOCK_METHOD(void, setText, (const std::function<void(TextUniforms &)> &), (override));
+    MOCK_METHOD(void, setScreenEffect, (const std::function<void(ScreenEffectUniforms &)> &), (override));
 };
 
 class TestGraphicsModule : boost::noncopyable {
 public:
     void init() {
-        _fonts = std::make_unique<MockFonts>();
-        _context = std::make_unique<MockGraphicsContext>();
-        _lips = std::make_unique<MockLips>();
-        _meshes = std::make_unique<MockMeshes>();
-        _models = std::make_unique<MockModels>();
-        _pipeline = std::make_unique<MockPipeline>();
-        _shaders = std::make_unique<MockShaders>();
-        _textures = std::make_unique<MockTextures>();
+        _context = std::make_unique<MockContext>();
+        _meshRegistry = std::make_unique<MockMeshRegistry>();
+        _pbrTextures = std::make_unique<MockPBRTextures>();
+        _shaderRegistry = std::make_unique<MockShaderRegistry>();
+        _statistic = std::make_unique<MockStatistic>();
+        _textureRegistry = std::make_unique<MockTextureRegistry>();
         _uniforms = std::make_unique<MockUniforms>();
-        _walkmeshes = std::make_unique<MockWalkmeshes>();
-        _window = std::make_unique<MockWindow>();
 
         _services = std::make_unique<GraphicsServices>(
-            *_fonts,
             *_context,
-            *_lips,
-            *_meshes,
-            *_models,
-            *_pipeline,
-            *_shaders,
-            *_textures,
-            *_uniforms,
-            *_walkmeshes,
-            *_window);
+            *_meshRegistry,
+            *_pbrTextures,
+            *_shaderRegistry,
+            *_statistic,
+            *_textureRegistry,
+            *_uniforms);
     }
 
-    MockGraphicsContext &context() {
+    MockContext &context() {
         return *_context;
     }
 
-    MockPipeline &pipeline() {
-        return *_pipeline;
-    }
-
-    MockWindow &window() {
-        return *_window;
+    MockShaderRegistry &shaderRegistry() {
+        return *_shaderRegistry;
     }
 
     GraphicsServices &services() {
@@ -190,17 +160,13 @@ public:
     }
 
 private:
-    std::unique_ptr<MockFonts> _fonts;
-    std::unique_ptr<MockGraphicsContext> _context;
-    std::unique_ptr<MockLips> _lips;
-    std::unique_ptr<MockMeshes> _meshes;
-    std::unique_ptr<MockModels> _models;
-    std::unique_ptr<MockPipeline> _pipeline;
-    std::unique_ptr<MockShaders> _shaders;
-    std::unique_ptr<MockTextures> _textures;
+    std::unique_ptr<MockContext> _context;
+    std::unique_ptr<MockMeshRegistry> _meshRegistry;
+    std::unique_ptr<MockPBRTextures> _pbrTextures;
+    std::unique_ptr<MockShaderRegistry> _shaderRegistry;
+    std::unique_ptr<MockStatistic> _statistic;
+    std::unique_ptr<MockTextureRegistry> _textureRegistry;
     std::unique_ptr<MockUniforms> _uniforms;
-    std::unique_ptr<MockWalkmeshes> _walkmeshes;
-    std::unique_ptr<MockWindow> _window;
 
     std::unique_ptr<GraphicsServices> _services;
 };

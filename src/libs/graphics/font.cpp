@@ -19,10 +19,9 @@
 
 #include "reone/graphics/context.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/texture.h"
-#include "reone/graphics/textures.h"
 #include "reone/graphics/uniforms.h"
 
 namespace reone {
@@ -52,17 +51,17 @@ void Font::load(std::shared_ptr<Texture> texture) {
     }
 }
 
-void Font::draw(const std::string &text, const glm::vec3 &position, const glm::vec3 &color, TextGravity gravity) {
+void Font::render(const std::string &text, const glm::vec3 &position, const glm::vec3 &color, TextGravity gravity) {
     if (text.empty()) {
         return;
     }
 
-    _shaders.use(ShaderProgramId::Text);
-    _textures.bind(*_texture);
+    _context.useProgram(_shaderRegistry.get(ShaderProgramId::text));
+    _context.bindTexture(*_texture);
 
-    _uniforms.setGeneral([this, &color](auto &general) {
-        general.resetLocals();
-        general.color = glm::vec4(color, 1.0f);
+    _uniforms.setLocals([this, &color](auto &locals) {
+        locals.reset();
+        locals.color = glm::vec4(color, 1.0f);
     });
 
     int numBlocks = static_cast<int>(text.size()) / kMaxTextChars;
@@ -88,7 +87,7 @@ void Font::draw(const std::string &text, const glm::vec3 &position, const glm::v
                 textOffset.x += glyph.size.x;
             }
         });
-        _meshes.quad().drawInstanced(numChars);
+        _meshRegistry.get(MeshName::quad).drawInstanced(numChars, _statistic);
     }
 }
 

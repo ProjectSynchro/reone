@@ -40,9 +40,9 @@ public:
         _resRef = guiResRef("mipc28x6");
     }
 
-    bool handle(const SDL_Event &event) override;
+    bool handle(const input::Event &event) override;
     void update(float dt) override;
-    void draw() override;
+    void render() override;
 
     BarkBubble &barkBubble() const { return *_barkBubble; }
 
@@ -298,8 +298,8 @@ private:
     void toggleCombat(bool enabled);
     void refreshActionQueueItems() const;
 
-    void drawHealth(int memberIndex);
-    void drawMinimap();
+    void renderHealth(int memberIndex);
+    void renderMinimap();
 };
 
 } // namespace game

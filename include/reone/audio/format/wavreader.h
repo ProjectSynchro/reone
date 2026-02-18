@@ -17,13 +17,16 @@
 
 #pragma once
 
-#include "reone/audio/types.h"
 #include "reone/system/binaryreader.h"
 #include "reone/system/stream/input.h"
+
+#include "../types.h"
 
 namespace reone {
 
 namespace audio {
+
+class AudioClip;
 
 enum class WavAudioFormat {
     PCM = 1,
@@ -31,8 +34,6 @@ enum class WavAudioFormat {
 };
 
 class IMp3ReaderFactory;
-
-class AudioBuffer;
 
 class WavReader : public boost::noncopyable {
 public:
@@ -43,7 +44,7 @@ public:
 
     void load();
 
-    std::shared_ptr<AudioBuffer> stream() const { return _stream; }
+    std::shared_ptr<AudioClip> stream() const { return _stream; }
 
 private:
     struct ChunkHeader {
@@ -68,7 +69,7 @@ private:
     uint16_t _bitsPerSample {0};
     IMA _ima[2];
 
-    std::shared_ptr<AudioBuffer> _stream;
+    std::shared_ptr<AudioClip> _stream;
 
     int16_t getIMASample(int channel, uint8_t nibble);
     void getIMASamples(int channel, uint8_t nibbles, int16_t &sample1, int16_t &sample2);

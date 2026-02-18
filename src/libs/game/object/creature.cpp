@@ -18,7 +18,7 @@
 #include "reone/game/object/creature.h"
 
 #include "reone/audio/di/services.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/game/action.h"
 #include "reone/game/action/attackobject.h"
 #include "reone/game/animationutil.h"
@@ -28,16 +28,18 @@
 #include "reone/game/game.h"
 #include "reone/game/portraits.h"
 #include "reone/game/script/runner.h"
-#include "reone/game/soundsets.h"
 #include "reone/game/surfaces.h"
+#include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/textureregistry.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
 #include "reone/resource/exception/notfound.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/soundsets.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
@@ -77,23 +79,23 @@ void Creature::Path::selectNextPoint() {
     }
 }
 
-void Creature::loadFromGIT(const schema::GIT_Creature_List &git) {
+void Creature::loadFromGIT(const resource::generated::GIT_Creature_List &git) {
     std::string templateResRef(boost::to_lower_copy(git.TemplateResRef));
     loadFromBlueprint(templateResRef);
     loadTransformFromGIT(git);
 }
 
 void Creature::loadFromBlueprint(const std::string &resRef) {
-    auto utc = _services.resource.gffs.get(resRef, ResourceType::Utc);
+    auto utc = _services.resource.gffs.get(resRef, ResType::Utc);
     if (!utc) {
         return;
     }
-    loadUTC(schema::parseUTC(*utc));
+    loadUTC(resource::generated::parseUTC(*utc));
     loadAppearance();
 }
 
 void Creature::loadAppearance() {
-    std::shared_ptr<TwoDa> appearances(_services.resource.twoDas.get("appearance"));
+    std::shared_ptr<TwoDA> appearances(_services.resource.twoDas.get("appearance"));
     if (!appearances) {
         throw ResourceNotFoundException("appearance 2DA not found");
     }
@@ -141,7 +143,7 @@ void Creature::updateModel() {
     if (bodyModelName.empty()) {
         return;
     }
-    auto replacement = _services.graphics.models.get(bodyModelName);
+    auto replacement = _services.resource.models.get(bodyModelName);
     if (!replacement) {
         return;
     }
@@ -154,7 +156,7 @@ void Creature::updateModel() {
     _animDirty = true;
 }
 
-void Creature::loadTransformFromGIT(const schema::GIT_Creature_List &git) {
+void Creature::loadTransformFromGIT(const resource::generated::GIT_Creature_List &git) {
     _position[0] = git.XPosition;
     _position[1] = git.YPosition;
     _position[2] = git.ZPosition;
@@ -182,13 +184,6 @@ void Creature::update(float dt) {
     updateModelAnimation();
     updateHealth();
     updateCombat(dt);
-
-    if (_audioSourceVoice) {
-        _audioSourceVoice->update();
-    }
-    if (_audioSourceFootstep) {
-        _audioSourceFootstep->update();
-    }
 }
 
 void Creature::updateModelAnimation() {
@@ -278,7 +273,7 @@ void Creature::playAnimation(const std::string &name, AnimationProperties proper
     doPlayAnimation(fireForget, [&]() {
         auto model = std::static_pointer_cast<ModelSceneNode>(_sceneNode);
         if (model) {
-            model->playAnimation(name, properties);
+            model->playAnimation(name, nullptr, properties);
         }
     });
 }
@@ -318,10 +313,10 @@ bool Creature::equip(const std::string &resRef) {
 
     bool equipped = false;
 
-    if (item->isEquippable(InventorySlot::body)) {
-        equipped = equip(InventorySlot::body, item);
-    } else if (item->isEquippable(InventorySlot::rightWeapon)) {
-        equipped = equip(InventorySlot::rightWeapon, item);
+    if (item->isEquippable(InventorySlots::body)) {
+        equipped = equip(InventorySlots::body, item);
+    } else if (item->isEquippable(InventorySlots::rightWeapon)) {
+        equipped = equip(InventorySlots::rightWeapon, item);
     }
 
     return equipped;
@@ -338,7 +333,7 @@ bool Creature::equip(int slot, const std::shared_ptr<Item> &item) {
     if (_sceneNode) {
         updateModel();
 
-        if (slot == InventorySlot::rightWeapon) {
+        if (slot == InventorySlots::rightWeapon) {
             auto model = std::static_pointer_cast<ModelSceneNode>(_sceneNode);
             auto weapon = static_cast<ModelSceneNode *>(model->getAttachment("rhand"));
             if (weapon && weapon->model().classification() == MdlClassification::lightsaber) {
@@ -429,17 +424,17 @@ glm::vec3 Creature::getSelectablePosition() const {
     auto headModel = static_cast<ModelSceneNode *>(model->getAttachment(g_headHookNode));
     if (headModel) {
         auto talkDummy = headModel->getNodeByName(g_talkDummyNode);
-        return talkDummy ? talkDummy->getOrigin() : headModel->getWorldCenterOfAABB();
+        return talkDummy ? talkDummy->origin() : headModel->getWorldCenterOfAABB();
     } else {
         auto talkDummy = model->getNodeByName(g_talkDummyNode);
-        return talkDummy ? talkDummy->getOrigin() : model->getWorldCenterOfAABB();
+        return talkDummy ? talkDummy->origin() : model->getWorldCenterOfAABB();
     }
 }
 
 float Creature::getAttackRange() const {
     float result = kDefaultAttackRange;
 
-    std::shared_ptr<Item> item(getEquippedItem(InventorySlot::rightWeapon));
+    std::shared_ptr<Item> item(getEquippedItem(InventorySlots::rightWeapon));
     if (item && item->attackRange() > kDefaultAttackRange) {
         result = item->attackRange();
     }
@@ -480,8 +475,16 @@ void Creature::playSound(SoundSetEntry entry, bool positional) {
     if (maybeSound == _soundSet->end()) {
         return;
     }
-    glm::vec3 position(_position + 1.7f);
-    _audioSourceVoice = _services.audio.player.play(maybeSound->second, AudioType::Sound, false, 1.0f, positional, position);
+    std::optional<glm::vec3> position;
+    if (positional) {
+        position = _position + glm::vec3 {0.0f, 0.0f, 1.7f};
+    }
+    _audioSourceVoice = _services.audio.mixer.play(
+        maybeSound->second,
+        AudioType::Sound,
+        1.0f,
+        false,
+        std::move(position));
 }
 
 void Creature::die() {
@@ -489,7 +492,7 @@ void Creature::die() {
     _dead = true;
     _name = _services.resource.strings.getText(kStrRefRemains);
 
-    debug(boost::format("Creature %s is dead") % _tag);
+    debug(str(boost::format("Creature %s is dead") % _tag));
 
     playSound(SoundSetEntry::Dead);
     playAnimation(getDieAnimation());
@@ -503,8 +506,8 @@ void Creature::runDeathScript() {
 }
 
 CreatureWieldType Creature::getWieldType() const {
-    auto rightWeapon = getEquippedItem(InventorySlot::rightWeapon);
-    auto leftWeapon = getEquippedItem(InventorySlot::leftWeapon);
+    auto rightWeapon = getEquippedItem(InventorySlots::rightWeapon);
+    auto leftWeapon = getEquippedItem(InventorySlots::leftWeapon);
 
     if (rightWeapon && leftWeapon) {
         return (rightWeapon->weaponWield() == WeaponWield::BlasterPistol) ? CreatureWieldType::DualPistols : CreatureWieldType::DualSwords;
@@ -590,7 +593,7 @@ void Creature::deactivateCombat(float delay) {
 }
 
 bool Creature::isTwoWeaponFighting() const {
-    return static_cast<bool>(getEquippedItem(InventorySlot::leftWeapon));
+    return static_cast<bool>(getEquippedItem(InventorySlots::leftWeapon));
 }
 
 std::shared_ptr<Object> Creature::getAttemptedAttackTarget() const {
@@ -610,8 +613,8 @@ std::shared_ptr<Object> Creature::getAttemptedAttackTarget() const {
 }
 
 int Creature::getAttackBonus(bool offHand) const {
-    auto rightWeapon(getEquippedItem(InventorySlot::rightWeapon));
-    auto leftWeapon(getEquippedItem(InventorySlot::leftWeapon));
+    auto rightWeapon(getEquippedItem(InventorySlots::rightWeapon));
+    auto leftWeapon(getEquippedItem(InventorySlots::leftWeapon));
     auto &weapon = offHand ? leftWeapon : rightWeapon;
 
     int modifier;
@@ -637,7 +640,7 @@ int Creature::getDefense() const {
 }
 
 void Creature::getMainHandDamage(int &min, int &max) const {
-    getWeaponDamage(InventorySlot::rightWeapon, min, max);
+    getWeaponDamage(InventorySlots::rightWeapon, min, max);
 }
 
 void Creature::getWeaponDamage(int slot, int &min, int &max) const {
@@ -662,7 +665,7 @@ void Creature::getWeaponDamage(int slot, int &min, int &max) const {
 }
 
 void Creature::getOffhandDamage(int &min, int &max) const {
-    getWeaponDamage(InventorySlot::leftWeapon, min, max);
+    getWeaponDamage(InventorySlots::leftWeapon, min, max);
 }
 
 void Creature::onEventSignalled(const std::string &name) {
@@ -674,7 +677,7 @@ void Creature::onEventSignalled(const std::string &name) {
         return;
     }
     const Surface &surface = _services.game.surfaces.getSurface(_walkmeshMaterial);
-    std::vector<std::shared_ptr<AudioBuffer>> materialSounds;
+    std::vector<std::shared_ptr<AudioClip>> materialSounds;
     if (surface.sound == "DT") {
         materialSounds = sounds->dirt;
     } else if (surface.sound == "GR") {
@@ -696,9 +699,14 @@ void Creature::onEventSignalled(const std::string &name) {
     if (index >= static_cast<int>(materialSounds.size())) {
         return;
     }
-    std::shared_ptr<AudioBuffer> sound(materialSounds[index]);
-    if (sound) {
-        _audioSourceFootstep = _services.audio.player.play(sound, AudioType::Sound, false, 1.0f, true, _position);
+    auto clip = materialSounds[index];
+    if (clip) {
+        _audioSourceFootstep = _services.audio.mixer.play(
+            std::move(clip),
+            AudioType::Sound,
+            1.0f,
+            false,
+            _position);
     }
 }
 
@@ -723,7 +731,7 @@ bool Creature::navigateTo(const glm::vec3 &dest, bool run, float distance, float
 
     bool updPath = true;
     if (_path) {
-        uint32_t now = _services.system.clock.ticks();
+        uint32_t now = _services.system.clock.millis();
         if (_path->destination == dest || now - _path->timeFound <= kKeepPathDuration) {
             advanceOnPath(run, dt);
             updPath = false;
@@ -776,7 +784,7 @@ void Creature::advanceOnPath(bool run, float dt) {
 
 void Creature::updatePath(const glm::vec3 &dest) {
     std::vector<glm::vec3> points(_game.module()->area()->pathfinder().findPath(_position, dest));
-    uint32_t now = _services.system.clock.ticks();
+    uint32_t now = _services.system.clock.millis();
     setPath(dest, std::move(points), now);
 }
 
@@ -934,7 +942,7 @@ std::string Creature::getPauseAnimation() const {
 }
 
 bool Creature::getWeaponInfo(WeaponType &type, WeaponWield &wield) const {
-    std::shared_ptr<Item> item(getEquippedItem(InventorySlot::rightWeapon));
+    std::shared_ptr<Item> item(getEquippedItem(InventorySlots::rightWeapon));
     if (item) {
         type = item->weaponType();
         wield = item->weaponWield();
@@ -949,11 +957,11 @@ int Creature::getWeaponWieldNumber(WeaponWield wield) const {
     case WeaponWield::StunBaton:
         return 1;
     case WeaponWield::SingleSword:
-        return isSlotEquipped(InventorySlot::leftWeapon) ? 4 : 2;
+        return isSlotEquipped(InventorySlots::leftWeapon) ? 4 : 2;
     case WeaponWield::DoubleBladedSword:
         return 3;
     case WeaponWield::BlasterPistol:
-        return isSlotEquipped(InventorySlot::leftWeapon) ? 6 : 5;
+        return isSlotEquipped(InventorySlots::leftWeapon) ? 6 : 5;
     case WeaponWield::BlasterRifle:
         return 7;
     case WeaponWield::HeavyWeapon:
@@ -980,7 +988,7 @@ std::string Creature::getRunAnimation() const {
 
         switch (wield) {
         case WeaponWield::SingleSword:
-            return isSlotEquipped(InventorySlot::leftWeapon) ? "runds" : "runss";
+            return isSlotEquipped(InventorySlots::leftWeapon) ? "runds" : "runss";
         case WeaponWield::DoubleBladedSword:
             return "runst";
         case WeaponWield::BlasterRifle:
@@ -1050,13 +1058,12 @@ std::shared_ptr<ModelSceneNode> Creature::buildModel() {
     if (modelName.empty()) {
         return nullptr;
     }
-    std::shared_ptr<Model> model(_services.graphics.models.get(modelName));
+    std::shared_ptr<Model> model(_services.resource.models.get(modelName));
     if (!model) {
         return nullptr;
     }
     auto &sceneGraph = _services.scene.graphs.get(_sceneName);
     auto sceneNode = sceneGraph.newModel(*model, ModelUsage::Creature);
-    sceneNode->setCullable(true);
     sceneNode->setDrawDistance(_game.options().graphics.drawDistance);
 
     return sceneNode;
@@ -1069,16 +1076,16 @@ void Creature::finalizeModel(ModelSceneNode &body) {
 
     if (!_envmap.empty()) {
         if (_envmap == "default") {
-            body.setEnvironmentMap(_services.graphics.textures.defaultCubemapRGB().get());
+            body.setEnvironmentMap(&_services.graphics.textureRegistry.get(TextureName::defaultCubemapRgb));
         } else {
-            body.setEnvironmentMap(_services.graphics.textures.get(_envmap, TextureUsage::EnvironmentMap).get());
+            body.setEnvironmentMap(_services.resource.textures.get(_envmap, TextureUsage::EnvironmentMap).get());
         }
     }
     std::string bodyTextureName(getBodyTextureName());
     if (!bodyTextureName.empty()) {
-        std::shared_ptr<Texture> texture(_services.graphics.textures.get(bodyTextureName, TextureUsage::Diffuse));
+        std::shared_ptr<Texture> texture(_services.resource.textures.get(bodyTextureName, TextureUsage::MainTex));
         if (texture) {
-            body.setDiffuseMap(texture.get());
+            body.setMainTexture(texture.get());
         }
     }
 
@@ -1087,14 +1094,14 @@ void Creature::finalizeModel(ModelSceneNode &body) {
     std::shared_ptr<Model> maskModel;
     std::string maskModelName(getMaskModelName());
     if (!maskModelName.empty()) {
-        maskModel = _services.graphics.models.get(maskModelName);
+        maskModel = _services.resource.models.get(maskModelName);
     }
 
     // Head
 
     std::string headModelName(getHeadModelName());
     if (!headModelName.empty()) {
-        std::shared_ptr<Model> headModel(_services.graphics.models.get(headModelName));
+        std::shared_ptr<Model> headModel(_services.resource.models.get(headModelName));
         if (headModel) {
             std::shared_ptr<ModelSceneNode> headSceneNode(sceneGraph.newModel(*headModel, ModelUsage::Creature));
             body.attach(g_headHookNode, *headSceneNode);
@@ -1107,9 +1114,9 @@ void Creature::finalizeModel(ModelSceneNode &body) {
 
     // Right weapon
 
-    std::string rightWeaponModelName(getWeaponModelName(InventorySlot::rightWeapon));
+    std::string rightWeaponModelName(getWeaponModelName(InventorySlots::rightWeapon));
     if (!rightWeaponModelName.empty()) {
-        std::shared_ptr<Model> weaponModel(_services.graphics.models.get(rightWeaponModelName));
+        std::shared_ptr<Model> weaponModel(_services.resource.models.get(rightWeaponModelName));
         if (weaponModel) {
             std::shared_ptr<ModelSceneNode> weaponSceneNode(sceneGraph.newModel(*weaponModel, ModelUsage::Equipment));
             body.attach(g_rightHandNode, *weaponSceneNode);
@@ -1118,9 +1125,9 @@ void Creature::finalizeModel(ModelSceneNode &body) {
 
     // Left weapon
 
-    std::string leftWeaponModelName(getWeaponModelName(InventorySlot::leftWeapon));
+    std::string leftWeaponModelName(getWeaponModelName(InventorySlots::leftWeapon));
     if (!leftWeaponModelName.empty()) {
-        std::shared_ptr<Model> weaponModel(_services.graphics.models.get(leftWeaponModelName));
+        std::shared_ptr<Model> weaponModel(_services.resource.models.get(leftWeaponModelName));
         if (weaponModel) {
             std::shared_ptr<ModelSceneNode> weaponSceneNode(sceneGraph.newModel(*weaponModel, ModelUsage::Equipment));
             body.attach(g_leftHandNode, *weaponSceneNode);
@@ -1134,7 +1141,7 @@ std::string Creature::getBodyModelName() const {
     if (_modelType == Creature::ModelType::Character) {
         column = "model";
 
-        std::shared_ptr<Item> bodyItem(getEquippedItem(InventorySlot::body));
+        std::shared_ptr<Item> bodyItem(getEquippedItem(InventorySlots::body));
         if (bodyItem) {
             std::string baseBodyVar(bodyItem->baseBodyVariation());
             column += baseBodyVar;
@@ -1146,7 +1153,7 @@ std::string Creature::getBodyModelName() const {
         column = "race";
     }
 
-    std::shared_ptr<TwoDa> appearance(_services.resource.twoDas.get("appearance"));
+    std::shared_ptr<TwoDA> appearance(_services.resource.twoDas.get("appearance"));
     if (!appearance) {
         throw ResourceNotFoundException("appearance 2DA not found");
     }
@@ -1159,7 +1166,7 @@ std::string Creature::getBodyModelName() const {
 
 std::string Creature::getBodyTextureName() const {
     std::string column;
-    std::shared_ptr<Item> bodyItem(getEquippedItem(InventorySlot::body));
+    std::shared_ptr<Item> bodyItem(getEquippedItem(InventorySlots::body));
 
     if (_modelType == Creature::ModelType::Character) {
         column = "tex";
@@ -1174,7 +1181,7 @@ std::string Creature::getBodyTextureName() const {
         column = "racetex";
     }
 
-    std::shared_ptr<TwoDa> appearance(_services.resource.twoDas.get("appearance"));
+    std::shared_ptr<TwoDA> appearance(_services.resource.twoDas.get("appearance"));
     if (!appearance) {
         throw ResourceNotFoundException("appearance 2DA not found");
     }
@@ -1187,7 +1194,7 @@ std::string Creature::getBodyTextureName() const {
         bool texFound = false;
         if (bodyItem) {
             std::string tmp(str(boost::format("%s%02d") % texName % bodyItem->textureVariation()));
-            std::shared_ptr<Texture> texture(_services.graphics.textures.get(tmp, TextureUsage::Diffuse));
+            std::shared_ptr<Texture> texture(_services.resource.textures.get(tmp, TextureUsage::MainTex));
             if (texture) {
                 texName = std::move(tmp);
                 texFound = true;
@@ -1205,7 +1212,7 @@ std::string Creature::getHeadModelName() const {
     if (_modelType != Creature::ModelType::Character) {
         return "";
     }
-    std::shared_ptr<TwoDa> appearance(_services.resource.twoDas.get("appearance"));
+    std::shared_ptr<TwoDA> appearance(_services.resource.twoDas.get("appearance"));
     if (!appearance) {
         throw ResourceNotFoundException("appearance 2DA not found");
     }
@@ -1213,7 +1220,7 @@ std::string Creature::getHeadModelName() const {
     if (headIdx == -1) {
         return "";
     }
-    std::shared_ptr<TwoDa> heads(_services.resource.twoDas.get("heads"));
+    std::shared_ptr<TwoDA> heads(_services.resource.twoDas.get("heads"));
     if (!heads) {
         throw ResourceNotFoundException("heads 2DA not found");
     }
@@ -1225,7 +1232,7 @@ std::string Creature::getHeadModelName() const {
 }
 
 std::string Creature::getMaskModelName() const {
-    std::shared_ptr<Item> headItem(getEquippedItem(InventorySlot::head));
+    std::shared_ptr<Item> headItem(getEquippedItem(InventorySlots::head));
     if (!headItem)
         return "";
 
@@ -1248,7 +1255,7 @@ std::string Creature::getWeaponModelName(int slot) const {
     return modelName;
 }
 
-void Creature::loadUTC(const schema::UTC &utc) {
+void Creature::loadUTC(const resource::generated::UTC &utc) {
     _blueprintResRef = boost::to_lower_copy(utc.TemplateResRef);
     _race = static_cast<RacialType>(utc.Race);         // index into racialtypes.2da
     _subrace = static_cast<Subrace>(utc.SubraceIndex); // index into subrace.2da
@@ -1322,7 +1329,7 @@ void Creature::loadUTC(const schema::UTC &utc) {
     // - Comment (toolset only)
 }
 
-void Creature::loadNameFromUTC(const schema::UTC &utc) {
+void Creature::loadNameFromUTC(const resource::generated::UTC &utc) {
     std::string firstName(_services.resource.strings.getText(utc.FirstName.first));
     std::string lastName(_services.resource.strings.getText(utc.LastName.first));
     if (!firstName.empty() && !lastName.empty()) {
@@ -1332,23 +1339,23 @@ void Creature::loadNameFromUTC(const schema::UTC &utc) {
     }
 }
 
-void Creature::loadSoundSetFromUTC(const schema::UTC &utc) {
+void Creature::loadSoundSetFromUTC(const resource::generated::UTC &utc) {
     uint32_t soundSetIdx = utc.SoundSetFile;
     if (soundSetIdx == 0xffff) {
         return;
     }
-    std::shared_ptr<TwoDa> soundSetTable(_services.resource.twoDas.get("soundset"));
+    std::shared_ptr<TwoDA> soundSetTable(_services.resource.twoDas.get("soundset"));
     if (!soundSetTable) {
         return;
     }
     std::string soundSetResRef(soundSetTable->getString(soundSetIdx, "resref"));
     if (!soundSetResRef.empty()) {
-        _soundSet = _services.game.soundSets.get(soundSetResRef);
+        _soundSet = _services.resource.soundSets.get(soundSetResRef);
     }
 }
 
-void Creature::loadBodyBagFromUTC(const schema::UTC &utc) {
-    std::shared_ptr<TwoDa> bodyBags(_services.resource.twoDas.get("bodybag"));
+void Creature::loadBodyBagFromUTC(const resource::generated::UTC &utc) {
+    std::shared_ptr<TwoDA> bodyBags(_services.resource.twoDas.get("bodybag"));
     if (!bodyBags) {
         return;
     }
@@ -1358,7 +1365,7 @@ void Creature::loadBodyBagFromUTC(const schema::UTC &utc) {
     _bodyBag.corpse = bodyBags->getBool(bodyBag, "corpse");
 }
 
-void Creature::loadAttributesFromUTC(const schema::UTC &utc) {
+void Creature::loadAttributesFromUTC(const resource::generated::UTC &utc) {
     CreatureAttributes &attributes = _attributes;
     attributes.setAbilityScore(Ability::Strength, utc.Str);
     attributes.setAbilityScore(Ability::Dexterity, utc.Dex);
@@ -1388,8 +1395,8 @@ void Creature::loadAttributesFromUTC(const schema::UTC &utc) {
     }
 }
 
-void Creature::loadPerceptionRangeFromUTC(const schema::UTC &utc) {
-    std::shared_ptr<TwoDa> ranges(_services.resource.twoDas.get("ranges"));
+void Creature::loadPerceptionRangeFromUTC(const resource::generated::UTC &utc) {
+    std::shared_ptr<TwoDA> ranges(_services.resource.twoDas.get("ranges"));
     if (!ranges) {
         return;
     }

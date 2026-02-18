@@ -26,9 +26,11 @@ namespace graphics {
 struct GraphicsOptions {
     int width {1024};
     int height {768};
+    int winScale {100};
     bool fullscreen {false};
     bool vsync {true};
     bool grass {true};
+    bool pbr {true};
     bool ssao {true};
     bool ssr {true};
     bool fxaa {true};

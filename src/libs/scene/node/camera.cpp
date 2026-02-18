@@ -33,8 +33,11 @@ void CameraSceneNode::onAbsoluteTransformChanged() {
 }
 
 bool CameraSceneNode::isInFrustum(const SceneNode &other) const {
+    if (!_camera) {
+        return false;
+    }
     if (other.isPoint()) {
-        return _camera->isInFrustum(other.getOrigin());
+        return _camera->isInFrustum(other.origin());
     } else {
         return _camera->isInFrustum(other.aabb() * other.absoluteTransform());
     }

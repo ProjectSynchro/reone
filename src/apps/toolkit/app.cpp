@@ -21,10 +21,10 @@
 #include <windows.h>
 #endif
 
-#include "reone/system/logutil.h"
+#include "reone/system/logger.h"
 #include "reone/system/threadutil.h"
 
-#include "mainframe.h"
+#include "view/resource/explorerframe.h"
 
 namespace reone {
 
@@ -32,17 +32,15 @@ bool ToolkitApp::OnInit() {
 #ifdef _WIN32
     SetProcessDPIAware();
 #endif
-    setMainThread();
-    initLog(
+    markMainThread();
+    Logger::instance.init(
         LogSeverity::Debug,
         std::set<LogChannel> {LogChannel::Global, LogChannel::Resources, LogChannel::Graphics, LogChannel::Audio},
         "toolkit.log");
-
-    wxImage::AddHandler(new wxTGAHandler());
-
-    auto frame = new MainFrame();
+    wxImage::AddHandler(new wxTGAHandler);
+    m_viewModel = std::make_unique<ResourceExplorerViewModel>();
+    auto frame = new ResourceExplorerFrame {*m_viewModel};
     frame->Show();
-
     return true;
 };
 

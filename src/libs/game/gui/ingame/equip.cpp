@@ -23,7 +23,7 @@
 #include "reone/game/object/creature.h"
 #include "reone/game/object/item.h"
 #include "reone/game/party.h"
-#include "reone/graphics/textures.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/strings.h"
 
 using namespace reone::audio;
@@ -86,8 +86,12 @@ void Equipment::onGUILoaded() {
         _btnInv[slotName.first] = findControl<Button>("BTN_INV_" + slotName.second);
     }
 
-    _controls.BTN_CHANGE1->setFocusable(false);
-    _controls.BTN_CHANGE2->setFocusable(false);
+    if (_controls.BTN_CHANGE1) {
+        _controls.BTN_CHANGE1->setSelectable(false);
+    }
+    if (_controls.BTN_CHANGE2) {
+        _controls.BTN_CHANGE2->setSelectable(false);
+    }
     // _controls.btnCharLeft->setVisible(false);
     // _controls.btnCharRight->setVisible(false);
     _controls.LB_DESC->setVisible(false);
@@ -114,8 +118,8 @@ void Equipment::onGUILoaded() {
         slotButton.second->setOnClick([&]() {
             selectSlot(slotButton.first);
         });
-        slotButton.second->setOnFocusChanged([&](bool focus) {
-            if (!focus)
+        slotButton.second->setOnSelectionChanged([&](bool selected) {
+            if (!selected)
                 return;
 
             std::string slotDesc;
@@ -145,27 +149,27 @@ void Equipment::configureItemsListBox() {
 static int getInventorySlot(Equipment::Slot slot) {
     switch (slot) {
     case Equipment::Slot::Implant:
-        return InventorySlot::implant;
+        return InventorySlots::implant;
     case Equipment::Slot::Head:
-        return InventorySlot::head;
+        return InventorySlots::head;
     case Equipment::Slot::Hands:
-        return InventorySlot::hands;
+        return InventorySlots::hands;
     case Equipment::Slot::ArmL:
-        return InventorySlot::leftArm;
+        return InventorySlots::leftArm;
     case Equipment::Slot::Body:
-        return InventorySlot::body;
+        return InventorySlots::body;
     case Equipment::Slot::ArmR:
-        return InventorySlot::rightArm;
+        return InventorySlots::rightArm;
     case Equipment::Slot::WeapL:
-        return InventorySlot::leftWeapon;
+        return InventorySlots::leftWeapon;
     case Equipment::Slot::Belt:
-        return InventorySlot::belt;
+        return InventorySlots::belt;
     case Equipment::Slot::WeapR:
-        return InventorySlot::rightWeapon;
+        return InventorySlots::rightWeapon;
     case Equipment::Slot::WeapL2:
-        return InventorySlot::leftWeapon2;
+        return InventorySlots::leftWeapon2;
     case Equipment::Slot::WeapR2:
-        return InventorySlot::rightWeapon2;
+        return InventorySlots::rightWeapon2;
     default:
         throw std::invalid_argument("Equipment: invalid slot: " + std::to_string(static_cast<int>(slot)));
     }
@@ -336,7 +340,7 @@ std::shared_ptr<Texture> Equipment::getEmptySlotIcon(Slot slot) const {
         return nullptr;
     }
 
-    std::shared_ptr<Texture> texture(_services.graphics.textures.get(resRef, TextureUsage::GUI));
+    std::shared_ptr<Texture> texture(_services.resource.textures.get(resRef, TextureUsage::GUI));
     auto pair = icons.insert(std::make_pair(slot, texture));
 
     return pair.first->second;
@@ -349,7 +353,7 @@ void Equipment::updateItems() {
         ListBox::Item lbItem;
         lbItem.tag = "[none]";
         lbItem.text = _services.resource.strings.getText(kStrRefNone);
-        lbItem.iconTexture = _services.graphics.textures.get("inone", TextureUsage::GUI);
+        lbItem.iconTexture = _services.resource.textures.get("inone", TextureUsage::GUI);
         lbItem.iconFrame = getItemFrameTexture(1);
 
         _controls.LB_ITEMS->addItem(std::move(lbItem));
@@ -385,7 +389,7 @@ std::shared_ptr<Texture> Equipment::getItemFrameTexture(int stackSize) const {
     } else {
         resRef = stackSize > 1 ? "lbl_hex_7" : "lbl_hex_3";
     }
-    return _services.graphics.textures.get(resRef, TextureUsage::GUI);
+    return _services.resource.textures.get(resRef, TextureUsage::GUI);
 }
 
 } // namespace game

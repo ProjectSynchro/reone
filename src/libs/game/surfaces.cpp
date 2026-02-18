@@ -18,7 +18,7 @@
 #include "reone/game/surfaces.h"
 
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
 
 using namespace reone::resource;
 
@@ -27,7 +27,7 @@ namespace reone {
 namespace game {
 
 void Surfaces::init() {
-    std::shared_ptr<TwoDa> surfacemat(_twoDas.get("surfacemat"));
+    std::shared_ptr<TwoDA> surfacemat(_twoDas.get("surfacemat"));
     if (!surfacemat) {
         return;
     }

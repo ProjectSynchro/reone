@@ -24,7 +24,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(key_reader, should_read_key) {
+TEST(KeyReader, should_read_key) {
     // given
 
     auto input = StringBuilder()
@@ -79,12 +79,12 @@ TEST(key_reader, should_read_key) {
     EXPECT_EQ(256, files[1].fileSize);
     EXPECT_EQ("Bb", files[1].filename);
     EXPECT_EQ(2ll, keys.size());
-    EXPECT_EQ("cc", keys[0].resId.resRef);
-    EXPECT_EQ(static_cast<int>(ResourceType::TwoDa), static_cast<int>(keys[0].resId.type));
+    EXPECT_EQ("cc", keys[0].resId.resRef.value());
+    EXPECT_EQ(static_cast<int>(ResType::TwoDA), static_cast<int>(keys[0].resId.type));
     EXPECT_EQ(12, keys[0].bifIdx);
     EXPECT_EQ(2003, keys[0].resIdx);
-    EXPECT_EQ("dd", keys[1].resId.resRef);
-    EXPECT_EQ(static_cast<int>(ResourceType::Gff), static_cast<int>(keys[1].resId.type));
+    EXPECT_EQ("dd", keys[1].resId.resRef.value());
+    EXPECT_EQ(static_cast<int>(ResType::Gff), static_cast<int>(keys[1].resId.type));
     EXPECT_EQ(12, keys[1].bifIdx);
     EXPECT_EQ(2003, keys[1].resIdx);
 }

@@ -17,12 +17,9 @@
 
 #pragma once
 
-#include "reone/resource/di/module.h"
-
 #include "../context.h"
-#include "../files.h"
+#include "../mixer.h"
 #include "../options.h"
-#include "../player.h"
 
 #include "services.h"
 
@@ -32,9 +29,8 @@ namespace audio {
 
 class AudioModule : boost::noncopyable {
 public:
-    AudioModule(AudioOptions &options, resource::ResourceModule &resource) :
-        _options(options),
-        _resource(resource) {
+    AudioModule(AudioOptions &options) :
+        _options(options) {
     }
 
     ~AudioModule() { deinit(); }
@@ -42,19 +38,16 @@ public:
     void init();
     void deinit();
 
-    AudioContext &context() { return *_context; }
-    AudioFiles &files() { return *_files; }
-    AudioPlayer &player() { return *_player; }
+    Context &context() { return *_context; }
+    AudioMixer &mixer() { return *_mixer; }
 
     AudioServices &services() { return *_services; }
 
 private:
     AudioOptions &_options;
-    resource::ResourceModule &_resource;
 
-    std::unique_ptr<AudioContext> _context;
-    std::unique_ptr<AudioFiles> _files;
-    std::unique_ptr<AudioPlayer> _player;
+    std::unique_ptr<Context> _context;
+    std::unique_ptr<AudioMixer> _mixer;
 
     std::unique_ptr<AudioServices> _services;
 };

@@ -17,10 +17,9 @@
 
 #include "reone/resource/format/gffwriter.h"
 
-#include "reone/resource/exception/format.h"
-#include "reone/system/stream/fileoutput.h"
-
 #include "reone/resource/gff.h"
+#include "reone/system/exception/validation.h"
+#include "reone/system/stream/fileoutput.h"
 
 namespace reone {
 
@@ -33,24 +32,24 @@ enum class FieldClassification {
     List
 };
 
-static const std::unordered_map<ResourceType, std::string> g_signatures {
-    {ResourceType::Res, "RES"},
-    {ResourceType::Are, "ARE"},
-    {ResourceType::Dlg, "DLG"},
-    {ResourceType::Git, "GIT"},
-    {ResourceType::Gui, "GUI"},
-    {ResourceType::Ifo, "IFO"},
-    {ResourceType::Jrl, "JRL"},
-    {ResourceType::Utc, "UTC"},
-    {ResourceType::Utd, "UTD"},
-    {ResourceType::Ute, "UTE"},
-    {ResourceType::Uti, "UTI"},
-    {ResourceType::Utm, "UTM"},
-    {ResourceType::Utp, "UTP"},
-    {ResourceType::Uts, "UTS"},
-    {ResourceType::Utt, "UTT"},
-    {ResourceType::Utw, "UTW"},
-    {ResourceType::Pth, "PTH"}};
+static const std::unordered_map<ResType, std::string> g_signatures {
+    {ResType::Res, "RES"},
+    {ResType::Are, "ARE"},
+    {ResType::Dlg, "DLG"},
+    {ResType::Git, "GIT"},
+    {ResType::Gui, "GUI"},
+    {ResType::Ifo, "IFO"},
+    {ResType::Jrl, "JRL"},
+    {ResType::Utc, "UTC"},
+    {ResType::Utd, "UTD"},
+    {ResType::Ute, "UTE"},
+    {ResType::Uti, "UTI"},
+    {ResType::Utm, "UTM"},
+    {ResType::Utp, "UTP"},
+    {ResType::Uts, "UTS"},
+    {ResType::Utt, "UTT"},
+    {ResType::Utw, "UTW"},
+    {ResType::Pth, "PTH"}};
 
 void GffWriter::save(const std::filesystem::path &path) {
     auto out = FileOutputStream(path);
@@ -168,13 +167,13 @@ static FieldClassification getFieldData(const Gff::Field &field, uint32_t &simpl
         return FieldClassification::Complex;
     }
     default:
-        throw FormatException("Unsupported field type: " + std::to_string(static_cast<int>(field.type)));
+        throw ValidationException("Unsupported field type: " + std::to_string(static_cast<int>(field.type)));
     }
 }
 
 void GffWriter::processTree() {
     std::queue<const Gff *> aQueue;
-    aQueue.push(_root.get());
+    aQueue.push(&_root);
 
     int structIdx = 0;
     int numStructs = 0;

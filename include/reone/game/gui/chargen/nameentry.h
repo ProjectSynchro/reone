@@ -20,8 +20,9 @@
 #include "reone/gui/control/button.h"
 #include "reone/gui/control/label.h"
 #include "reone/gui/textinput.h"
+#include "reone/input/event.h"
+#include "reone/resource/ltr.h"
 
-#include "../../format/ltrreader.h"
 #include "../../gui.h"
 
 namespace reone {
@@ -48,7 +49,7 @@ public:
         _resRef = guiResRef("name");
     }
 
-    bool handle(const SDL_Event &event) override;
+    bool handle(const input::Event &event) override;
 
     void loadRandomName();
 
@@ -67,10 +68,6 @@ private:
     CharacterGeneration &_charGen;
     gui::TextInput _input;
 
-    std::unique_ptr<LtrReader> _maleLtr;
-    std::unique_ptr<LtrReader> _femaleLtr;
-    std::unique_ptr<LtrReader> _lastNameLtr;
-
     void onGUILoaded() override;
 
     void bindControls() {
@@ -81,10 +78,6 @@ private:
         _controls.NAME_BOX_EDIT = findControl<gui::Label>("NAME_BOX_EDIT");
         _controls.SUB_TITLE_LBL = findControl<gui::Label>("SUB_TITLE_LBL");
     }
-
-    void loadLtrFile(const std::string &resRef, std::unique_ptr<LtrReader> &ltr);
-
-    std::string getRandomName() const;
 };
 
 } // namespace game

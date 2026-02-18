@@ -26,10 +26,10 @@
 #include "reone/game/portraits.h"
 #include "reone/game/types.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
 #include "reone/gui/control/button.h"
 #include "reone/gui/control/label.h"
 #include "reone/gui/sceneinitializer.h"
+#include "reone/resource/provider/models.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
@@ -122,8 +122,8 @@ void ClassSelection::setupClassButton(int index, Gender gender, ClassType clazz)
         _charGen.setCharacter(character);
         _charGen.openQuickOrCustom();
     });
-    selButton.setOnFocusChanged([this, index](bool focus) {
-        onClassButtonFocusChanged(index, focus);
+    selButton.setOnSelectionChanged([this, index](bool selected) {
+        onClassButtonSelectionChanged(index, selected);
     });
 
     // 3D control
@@ -199,10 +199,9 @@ std::shared_ptr<ModelSceneNode> ClassSelection::getCharacterModel(int appearance
     character->setAppearance(appearance);
     character->equip("g_a_clothes01");
     character->loadAppearance();
-    character->sceneNode()->setCullable(false);
     character->updateModelAnimation();
 
-    auto model = sceneGraph.newModel(*_services.graphics.models.get("cgbody_light"), ModelUsage::GUI);
+    auto model = sceneGraph.newModel(*_services.resource.models.get("cgbody_light"), ModelUsage::GUI);
     model->attach("cgbody_light", *character->sceneNode());
 
     return model;
@@ -226,8 +225,8 @@ void ClassSelection::setClassButtonEnlarged(int index, bool enlarged) {
     control.setExtent(std::move(extent));
 }
 
-void ClassSelection::onClassButtonFocusChanged(int index, bool focus) {
-    if (focus) {
+void ClassSelection::onClassButtonSelectionChanged(int index, bool selected) {
+    if (selected) {
         setClassButtonEnlarged(index, true);
     } else {
         setClassButtonEnlarged(index, false);

@@ -20,21 +20,24 @@
 #include "reone/graphics/animation.h"
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
+#include "reone/graphics/material.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/system/logutil.h"
-
+#include "reone/resource/di/services.h"
+#include "reone/resource/provider/models.h"
 #include "reone/scene/graph.h"
-#include "reone/scene/types.h"
-
 #include "reone/scene/node/emitter.h"
 #include "reone/scene/node/light.h"
 #include "reone/scene/node/mesh.h"
+#include "reone/scene/render/pass.h"
+#include "reone/scene/types.h"
+#include "reone/system/logutil.h"
 
 using namespace reone::audio;
 using namespace reone::graphics;
+using namespace reone::resource;
 
 namespace reone {
 
@@ -42,30 +45,15 @@ namespace scene {
 
 static constexpr float kTransitionLength = 0.25f;
 
-ModelSceneNode::ModelSceneNode(
-    Model &model,
-    ModelUsage usage,
-    SceneGraph &sceneGraph,
-    GraphicsServices &graphicsSvc,
-    AudioServices &audioSvc) :
-    SceneNode(
-        SceneNodeType::Model,
-        sceneGraph,
-        graphicsSvc,
-        audioSvc),
-    _model(&model),
-    _usage(usage) {
-
-    init();
-}
-
 void ModelSceneNode::init() {
     if (!_nodeByNumber.empty()) {
         return;
     }
-    buildNodeTree(*_model->rootNode(), *this);
+    if (_model->rootNode()) {
+        buildNodeTree(*_model->rootNode(), *this);
+    }
     computeAABB();
-    _point = _aabb.isEmpty();
+    _point = _aabb.isDegenerate();
 }
 
 void ModelSceneNode::buildNodeTree(ModelNode &node, SceneNode &parent) {
@@ -95,10 +83,13 @@ void ModelSceneNode::buildNodeTree(ModelNode &node, SceneNode &parent) {
 
     if (node.isReference()) {
         auto reference = node.reference();
-        if (reference->model) {
-            auto model = _sceneGraph.newModel(*reference->model, _usage);
-            model->init();
-            attach(node.name(), *model);
+        if (!reference->modelName.empty()) {
+            auto model = _resourceSvc.models.get(reference->modelName);
+            if (model) {
+                auto refModelNode = _sceneGraph.newModel(*model, _usage);
+                refModelNode->init();
+                attach(node.name(), *refModelNode);
+            }
         }
     }
     for (auto &child : node.children()) {
@@ -115,41 +106,24 @@ void ModelSceneNode::update(float dt) {
     updateAnimations(dt);
 }
 
-void ModelSceneNode::drawLeafs(const std::vector<SceneNode *> &leafs) {
+void ModelSceneNode::renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) {
     for (auto &leaf : leafs) {
-        static_cast<MeshSceneNode *>(leaf)->draw();
+        static_cast<MeshSceneNode *>(leaf)->render(pass);
     }
 }
 
-void ModelSceneNode::drawAABB() {
-    _graphicsSvc.context.withPolygonMode(PolygonMode::Line, [this]() {
-        _graphicsSvc.uniforms.setGeneral([this](auto &u) {
-            u.resetLocals();
-            u.model = _absTransform;
-            u.model *= glm::translate(_aabb.center());
-            u.model *= glm::scale(0.5f * _aabb.size());
-            u.modelInv = glm::inverse(u.model);
-        });
-        _graphicsSvc.shaders.use(ShaderProgramId::AABB);
-        _graphicsSvc.meshes.box().draw();
-    });
+void ModelSceneNode::renderAABB(IRenderPass &pass) {
+    auto aabbWorld = _aabb * _absTransform;
+    std::vector<glm::vec4> corners;
+    corners.reserve(8);
+    for (const auto &corner : aabbWorld.corners()) {
+        corners.emplace_back(corner, 1.0f);
+    }
+    pass.drawAABB(corners);
 }
 
 void ModelSceneNode::computeAABB() {
-    _aabb.reset();
-
-    for (auto &node : _nodeByNumber) {
-        if (node.second->type() == SceneNodeType::Mesh) {
-            auto &modelNode = node.second->modelNode();
-            auto mesh = modelNode.mesh();
-            if (!mesh || !mesh->mesh) {
-                continue;
-            }
-            auto modelSpaceAABB = mesh->mesh->aabb() * modelNode.absoluteTransform();
-            _aabb.expand(modelSpaceAABB);
-        }
-    }
-
+    _aabb = _model->aabb();
     for (auto &attachment : _attachments) {
         if (attachment.second->type() == SceneNodeType::Model) {
             AABB modelSpaceAABB(attachment.second->aabb() * attachment.second->absoluteTransform() * _absTransformInv);
@@ -202,10 +176,10 @@ SceneNode *ModelSceneNode::getAttachment(const std::string &parentName) {
     return it != _attachments.end() ? it->second : nullptr;
 }
 
-void ModelSceneNode::setDiffuseMap(Texture *texture) {
+void ModelSceneNode::setMainTexture(Texture *texture) {
     for (auto &child : _children) {
         if (child->type() == SceneNodeType::Dummy || child->type() == SceneNodeType::Mesh) {
-            static_cast<ModelNodeSceneNode *>(child)->setDiffuseMap(texture);
+            static_cast<ModelNodeSceneNode *>(child)->setMainTexture(texture);
         }
     }
 }
@@ -218,10 +192,10 @@ void ModelSceneNode::setEnvironmentMap(Texture *texture) {
     }
 }
 
-void ModelSceneNode::playAnimation(const std::string &name, AnimationProperties properties) {
+void ModelSceneNode::playAnimation(const std::string &name, graphics::LipAnimation *lipAnim, AnimationProperties properties) {
     auto anim = _model->getAnimation(name);
     if (anim) {
-        playAnimation(*anim, nullptr, std::move(properties));
+        playAnimation(*anim, lipAnim, std::move(properties));
     }
 }
 
@@ -316,11 +290,14 @@ void ModelSceneNode::updateAnimations(float dt) {
     }
 
     if (_animChannels.empty()) {
-        playAnimation("default", AnimationProperties::fromFlags(AnimationFlags::loop));
+        playAnimation("default", nullptr, AnimationProperties::fromFlags(AnimationFlags::loop));
         return;
     }
 
     for (auto &channel : _animChannels) {
+        if (!channel.anim) {
+            continue;
+        }
         if (!channel.freeze) {
             updateAnimationChannel(channel, dt);
         }
@@ -398,36 +375,32 @@ void ModelSceneNode::computeAnimationStates(AnimationChannel &channel, float tim
             uint8_t leftShape, rightShape;
             float factor;
             if (channel.lipAnim->getKeyframes(time, leftShape, rightShape, factor)) {
-                glm::vec3 animPosition;
-                if (animNode->getPosition(leftShape, rightShape, factor, animPosition)) {
-                    position += channel.properties.scale * animPosition;
+                float oneOverNumShapes = 1.0f / static_cast<float>(kNumLipShapes);
+                float leftShapeTime = leftShape * oneOverNumShapes * channel.anim->length();
+                float rightShapeTime = rightShape * oneOverNumShapes * channel.anim->length();
+                glm::vec3 leftShapePos, rightShapePos;
+                glm::quat leftShapeRot, rightShapeRot;
+                if (animNode->positionAtTime(leftShapeTime, leftShapePos) &&
+                    animNode->positionAtTime(rightShapeTime, rightShapePos)) {
+                    position += channel.properties.scale * glm::mix(leftShapePos, rightShapePos, factor);
                     state.flags |= AnimationStateFlags::transform;
                 }
-                glm::quat animOrientation;
-                if (animNode->getOrientation(leftShape, rightShape, factor, animOrientation)) {
-                    orientation = std::move(animOrientation);
-                    state.flags |= AnimationStateFlags::transform;
-                }
-                float animScale;
-                if (animNode->getScale(leftShape, rightShape, factor, animScale)) {
-                    scale = animScale;
+                if (animNode->orientationAtTime(leftShapeTime, leftShapeRot) &&
+                    animNode->orientationAtTime(rightShapeTime, rightShapeRot)) {
+                    orientation = glm::slerp(leftShapeRot, rightShapeRot, factor);
                     state.flags |= AnimationStateFlags::transform;
                 }
             }
         } else {
             glm::vec3 animPosition;
-            if (animNode->position().getByTime(time, animPosition)) {
+            if (animNode->positionAtTime(time, animPosition)) {
                 position += channel.properties.scale * animPosition;
                 state.flags |= AnimationStateFlags::transform;
             }
-            glm::quat animOrientation;
-            if (animNode->orientation().getByTime(time, animOrientation)) {
-                orientation = std::move(animOrientation);
+            if (animNode->orientationAtTime(time, orientation)) {
                 state.flags |= AnimationStateFlags::transform;
             }
-            float animScale;
-            if (animNode->scale().getByTime(time, animScale)) {
-                scale = animScale;
+            if (animNode->scaleAtTime(time, scale)) {
                 state.flags |= AnimationStateFlags::transform;
             }
         }
@@ -436,20 +409,14 @@ void ModelSceneNode::computeAnimationStates(AnimationChannel &channel, float tim
             state.transform *= glm::translate(position);
             state.transform *= glm::mat4_cast(orientation);
         }
-        float animAlpha;
-        if (animNode->alpha().getByTime(time, animAlpha)) {
+        if (animNode->floatValueAtTime(ControllerTypes::alpha, time, state.alpha)) {
             state.flags |= AnimationStateFlags::alpha;
-            state.alpha = animAlpha;
         }
-        glm::vec3 animSelfIllum;
-        if (animNode->selfIllumColor().getByTime(time, animSelfIllum)) {
+        if (animNode->vectorValueAtTime(ControllerTypes::selfIllumColor, time, state.selfIllumColor)) {
             state.flags |= AnimationStateFlags::selfIllumColor;
-            state.selfIllumColor = std::move(animSelfIllum);
         }
-        glm::vec3 animColor;
-        if (animNode->color().getByTime(time, animColor)) {
+        if (animNode->vectorValueAtTime(ControllerTypes::color, time, state.color)) {
             state.flags |= AnimationStateFlags::color;
-            state.color = std::move(animColor);
         }
         channel.stateByNodeNumber[modelNode.number()] = std::move(state);
     }
@@ -561,6 +528,39 @@ void ModelSceneNode::applyAnimationStates(const ModelNode &modelNode) {
 
     for (auto &child : modelNode.children()) {
         applyAnimationStates(*child);
+    }
+}
+
+void ModelSceneNode::pauseAnimation() {
+    if (_animChannels.empty()) {
+        return;
+    }
+    _animChannels.front().freeze = true;
+}
+
+void ModelSceneNode::resumeAnimation() {
+    if (_animChannels.empty()) {
+        return;
+    }
+    _animChannels.front().freeze = false;
+}
+
+void ModelSceneNode::setAnimationTime(float time) {
+    if (_animChannels.empty()) {
+        return;
+    }
+    auto &channel = _animChannels.front();
+    channel.time = time;
+    bool looped = (channel.properties.flags & AnimationFlags::loop) != 0;
+    bool frozen = channel.freeze;
+    if (looped) {
+        channel.properties.flags ^= AnimationFlags::loop;
+    }
+    channel.freeze = false;
+    updateAnimations(0.0f);
+    channel.freeze = frozen;
+    if (looped) {
+        channel.properties.flags |= AnimationFlags::loop;
     }
 }
 

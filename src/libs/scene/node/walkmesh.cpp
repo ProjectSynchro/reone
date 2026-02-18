@@ -19,10 +19,12 @@
 
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/material.h"
+#include "reone/graphics/shaderregistry.h"
+#include "reone/graphics/statistic.h"
 #include "reone/graphics/uniforms.h"
-
 #include "reone/scene/graph.h"
+#include "reone/scene/render/pipeline.h"
 
 using namespace reone::graphics;
 
@@ -47,31 +49,31 @@ void WalkmeshSceneNode::init() {
             vertices.push_back(material);
         }
         Mesh::Face face;
-        face.indices[0] = vertIdxStart + 0;
-        face.indices[1] = vertIdxStart + 1;
-        face.indices[2] = vertIdxStart + 2;
+        face.vertices[0] = vertIdxStart + 0;
+        face.vertices[1] = vertIdxStart + 1;
+        face.vertices[2] = vertIdxStart + 2;
         face.material = wface.material;
         faces.push_back(std::move(face));
     }
 
-    Mesh::VertexSpec spec;
-    spec.stride = 7 * sizeof(float);
-    spec.offCoords = 0;
-    spec.offNormals = 3 * sizeof(float);
-    spec.offMaterial = 6 * sizeof(float);
+    Mesh::VertexLayout vertexLayout;
+    vertexLayout.stride = 7 * sizeof(float);
+    vertexLayout.offPosition = 0;
+    vertexLayout.offNormals = 3 * sizeof(float);
+    vertexLayout.offMaterial = 6 * sizeof(float);
 
-    _mesh = std::make_unique<Mesh>(std::move(vertices), std::move(faces), std::move(spec));
+    _mesh = std::make_unique<Mesh>(
+        std::move(vertices),
+        std::move(vertexLayout),
+        std::move(faces));
+    _mesh->init();
 }
 
-void WalkmeshSceneNode::draw() {
-    _graphicsSvc.uniforms.setGeneral([this](auto &general) {
-        general.resetLocals();
-        general.model = _absTransform;
-    });
-    _graphicsSvc.shaders.use(ShaderProgramId::Walkmesh);
-    _graphicsSvc.context.withFaceCulling(CullFaceMode::Back, [this]() {
-        _mesh->draw();
-    });
+void WalkmeshSceneNode::render(IRenderPass &pass) {
+    Material material;
+    material.type = MaterialType::Walkmesh;
+    material.faceCulling = FaceCullMode::Back;
+    pass.draw(*_mesh, material, _absTransform, _absTransformInv);
 }
 
 } // namespace scene

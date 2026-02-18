@@ -17,21 +17,51 @@
 
 #pragma once
 
+#include "reone/system/exception/validation.h"
+
 namespace reone {
 
 namespace resource {
 
-class TwoDaReader;
+class TwoDAReader;
 
-class TwoDa : boost::noncopyable {
+class TwoDA : boost::noncopyable {
 public:
     struct Row {
         std::vector<std::string> values;
     };
 
-    TwoDa(std::vector<std::string> columns, std::vector<Row> rows) :
+    class Builder {
+    public:
+        Builder &columns(std::vector<std::string> columns) {
+            _columns = std::move(columns);
+            return *this;
+        }
+
+        Builder &row(std::vector<std::string> values) {
+            _rows.push_back({std::move(values)});
+            return *this;
+        }
+
+        std::unique_ptr<TwoDA> build() {
+            return std::make_unique<TwoDA>(_columns, _rows);
+        }
+
+    private:
+        std::vector<std::string> _columns;
+        std::vector<Row> _rows;
+    };
+
+    TwoDA(std::vector<std::string> columns, std::vector<Row> rows) :
         _columns(std::move(columns)),
         _rows(std::move(rows)) {
+        size_t numColumns = _columns.size();
+        for (size_t row = 0; row < _rows.size(); ++row) {
+            size_t numValues = _rows[row].values.size();
+            if (numValues != numColumns) {
+                throw ValidationException(str(boost::format("Expected %d columns in 2DA row %d, was %d") % numColumns % row % numValues));
+            }
+        }
     }
 
     /**
@@ -49,9 +79,15 @@ public:
 
     std::string getString(int row, const std::string &column, std::string defValue = "") const;
     int getInt(int row, const std::string &column, int defValue = 0) const;
-    uint32_t getUint(int row, const std::string &column, uint32_t defValue = 0) const;
+    uint32_t getHexInt(int row, const std::string &column, uint32_t defValue = 0) const;
     float getFloat(int row, const std::string &column, float defValue = 0.0f) const;
     bool getBool(int row, const std::string &column, bool defValue = false) const;
+
+    std::optional<std::string> getStringOpt(int row, const std::string &column) const;
+    std::optional<int> getIntOpt(int row, const std::string &column) const;
+    std::optional<uint32_t> getHexIntOpt(int row, const std::string &column) const;
+    std::optional<float> getFloatOpt(int row, const std::string &column) const;
+    std::optional<bool> getBoolOpt(int row, const std::string &column) const;
 
     const std::vector<std::string> &columns() const { return _columns; }
     const std::vector<Row> &rows() const { return _rows; }

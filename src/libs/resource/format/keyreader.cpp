@@ -17,14 +17,14 @@
 
 #include "reone/resource/format/keyreader.h"
 
-#include "reone/resource/format/signutil.h"
+#include "reone/system/checkutil.h"
 
 namespace reone {
 
 namespace resource {
 
 void KeyReader::load() {
-    checkSignature(_key, std::string("KEY V1  ", 8));
+    checkEqual("KEY signature", _key.readString(8), std::string("KEY V1  ", 8));
 
     _numBifs = _key.readUint32();
     _numKeys = _key.readUint32();
@@ -73,7 +73,7 @@ KeyReader::KeyEntry KeyReader::readKeyEntry() {
     auto resId = _key.readUint32();
 
     auto entry = KeyEntry();
-    entry.resId = ResourceId(std::move(resRef), static_cast<ResourceType>(resType));
+    entry.resId = ResourceId(std::move(resRef), static_cast<ResType>(resType));
     entry.bifIdx = resId >> 20;
     entry.resIdx = resId & 0xfffff;
 

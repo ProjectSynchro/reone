@@ -24,8 +24,6 @@ namespace reone {
 
 namespace graphics {
 
-class BwmReader;
-
 class Walkmesh : boost::noncopyable {
 public:
     struct Face {

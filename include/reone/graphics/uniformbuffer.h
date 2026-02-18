@@ -33,13 +33,17 @@ public:
 
     void refresh();
 
-    void setData(const void *data, ptrdiff_t size, bool refresh = false) {
+    void setData(const void *data, ptrdiff_t size, bool refresh = true) {
         _data = data;
         _size = size;
 
         if (refresh) {
             this->refresh();
         }
+    }
+
+    uint32_t nameGL() const {
+        return _nameGL;
     }
 
 private:

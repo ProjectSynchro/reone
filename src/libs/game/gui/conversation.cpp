@@ -18,13 +18,13 @@
 #include "reone/game/gui/conversation.h"
 
 #include "reone/audio/di/services.h"
-#include "reone/audio/files.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/graphics/animation.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/lips.h"
-#include "reone/graphics/models.h"
 #include "reone/gui/control/listbox.h"
+#include "reone/resource/provider/audioclips.h"
+#include "reone/resource/provider/lips.h"
+#include "reone/resource/provider/models.h"
 #include "reone/resource/resources.h"
 #include "reone/system/logutil.h"
 
@@ -77,7 +77,7 @@ void Conversation::loadConversationBackground() {
 
 void Conversation::loadCameraModel() {
     std::string modelResRef(_dialog->cameraModel);
-    _cameraModel = modelResRef.empty() ? nullptr : _services.graphics.models.get(modelResRef);
+    _cameraModel = modelResRef.empty() ? nullptr : _services.resource.models.get(modelResRef);
 }
 
 void Conversation::onStart() {
@@ -164,18 +164,19 @@ void Conversation::loadVoiceOver() {
     std::string voiceResRef;
     if (!_currentEntry->sound.empty()) {
         voiceResRef = _currentEntry->sound;
-        _lipAnimation = _services.graphics.lips.get(_currentEntry->sound);
+        _lipAnimation = _services.resource.lips.get(_currentEntry->sound);
     }
     if (!_currentEntry->voResRef.empty()) {
         if (voiceResRef.empty()) {
             voiceResRef = _currentEntry->voResRef;
         }
         if (!_lipAnimation) {
-            _lipAnimation = _services.graphics.lips.get(_currentEntry->voResRef);
+            _lipAnimation = _services.resource.lips.get(_currentEntry->voResRef);
         }
     }
     if (!voiceResRef.empty()) {
-        _currentVoice = _services.audio.player.play(voiceResRef, AudioType::Voice);
+        auto clip = _services.resource.audioClips.get(voiceResRef);
+        _currentVoice = _services.audio.mixer.play(std::move(clip), AudioType::Voice);
     }
 }
 
@@ -249,13 +250,13 @@ void Conversation::pickReply(int index) {
     loadEntry(entryIdx);
 }
 
-bool Conversation::handle(const SDL_Event &event) {
+bool Conversation::handle(const input::Event &event) {
     switch (event.type) {
-    case SDL_MOUSEBUTTONDOWN:
+    case input::EventType::MouseButtonDown:
         if (handleMouseButtonDown(event.button))
             return true;
         break;
-    case SDL_KEYUP:
+    case input::EventType::KeyUp:
         if (handleKeyUp(event.key))
             return true;
         break;
@@ -266,8 +267,8 @@ bool Conversation::handle(const SDL_Event &event) {
     return GameGUI::handle(event);
 }
 
-bool Conversation::handleMouseButtonDown(const SDL_MouseButtonEvent &event) {
-    if (event.button == SDL_BUTTON_LEFT && !_entryEnded && isSkippableEntry()) {
+bool Conversation::handleMouseButtonDown(const input::MouseButtonEvent &event) {
+    if (event.button == input::MouseButton::Left && !_entryEnded && isSkippableEntry()) {
         endCurrentEntry();
         return true;
     }
@@ -300,10 +301,10 @@ void Conversation::endCurrentEntry() {
 void Conversation::onEntryEnded() {
 }
 
-bool Conversation::handleKeyUp(const SDL_KeyboardEvent &event) {
-    SDL_Scancode key = event.keysym.scancode;
-    if (key >= SDL_SCANCODE_1 && key <= SDL_SCANCODE_9) {
-        int index = key - SDL_SCANCODE_1;
+bool Conversation::handleKeyUp(const input::KeyEvent &event) {
+    char code = static_cast<char>(event.code);
+    if (code >= static_cast<char>(input::KeyCode::Key1) && code <= static_cast<char>(input::KeyCode::Key9)) {
+        int index = code - static_cast<char>(input::KeyCode::Key1);
         if (_entryEnded) {
             pickReply(index);
             return true;
@@ -315,9 +316,6 @@ bool Conversation::handleKeyUp(const SDL_KeyboardEvent &event) {
 
 void Conversation::update(float dt) {
     GameGUI::update(dt);
-    if (_currentVoice) {
-        _currentVoice->update();
-    }
     if (!_entryEnded) {
         _endEntryTimer.update(dt);
         if (_endEntryTimer.elapsed() || (_currentVoice && !_currentVoice->isPlaying())) {

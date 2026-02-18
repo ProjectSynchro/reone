@@ -17,6 +17,8 @@
 
 #include "reone/game/pathfinder.h"
 
+using namespace reone::resource;
+
 namespace reone {
 
 namespace game {
@@ -38,12 +40,10 @@ const Pathfinder::ContextVertex &Pathfinder::Context::getVertexWithLeastTotalCos
 
 void Pathfinder::load(const std::vector<Path::Point> &points, const std::unordered_map<int, float> &pointZ) {
     for (uint16_t i = 0; i < points.size(); ++i) {
-        if (pointZ.count(i) == 0) {
-            continue;
-        }
+        float z = pointZ.count(i) > 0 ? pointZ.at(i) : 0.0f;
 
-        const Path::Point &point = points[i];
-        glm::vec3 pointVec(point.x, point.y, pointZ.find(i)->second);
+        const auto &point = points[i];
+        glm::vec3 pointVec(point.x, point.y, z);
         _vertices.push_back(pointVec);
 
         glm::vec3 adjPointVec;

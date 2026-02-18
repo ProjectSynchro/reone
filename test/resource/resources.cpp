@@ -26,7 +26,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(resources, should_index_providers_and_get_resources_without_caching) {
+TEST(Resources, should_index_providers_and_get_resources_without_caching) {
     // given
 
     auto tmpDirPath = std::filesystem::temp_directory_path();
@@ -94,10 +94,10 @@ TEST(resources, should_index_providers_and_get_resources_without_caching) {
     resources.addFolder(overridePath);
     resources.addRIM(rimPath);
 
-    auto numProviders = resources.providers().size();
-    auto actualRes1 = resources.find(ResourceId("sample", ResourceType::Txt));
+    auto numProviders = resources.containers().size();
+    auto actualRes1 = resources.find(ResourceId("sample", ResType::Txt));
     resources.clear();
-    auto actualRes2 = resources.find(ResourceId("sample", ResourceType::Txt));
+    auto actualRes2 = resources.find(ResourceId("sample", ResType::Txt));
 
     // then
 

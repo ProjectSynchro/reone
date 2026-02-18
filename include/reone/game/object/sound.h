@@ -18,8 +18,8 @@
 #pragma once
 
 #include "../object.h"
-#include "../schema/git.h"
-#include "../schema/uts.h"
+#include "reone/resource/parser/gff/git.h"
+#include "reone/resource/parser/gff/uts.h"
 
 namespace reone {
 
@@ -46,7 +46,7 @@ public:
             services) {
     }
 
-    void loadFromGIT(const schema::GIT_SoundList &git);
+    void loadFromGIT(const resource::generated::GIT_SoundList &git);
     void loadFromBlueprint(const std::string &resRef);
 
     void update(float dt) override;
@@ -88,14 +88,14 @@ private:
 
     std::vector<std::string> _sounds;
 
-    void loadTransformFromGIT(const schema::GIT_SoundList &git);
+    void loadTransformFromGIT(const resource::generated::GIT_SoundList &git);
 
     void updateTransform() override;
 
     // Blueprint
 
-    void loadUTS(const schema::UTS &uts);
-    void loadPriorityFromUTS(const schema::UTS &uts);
+    void loadUTS(const resource::generated::UTS &uts);
+    void loadPriorityFromUTS(const resource::generated::UTS &uts);
 
     // END Blueprint
 };

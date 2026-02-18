@@ -17,13 +17,11 @@
 
 #include "reone/movie/format/bikreader.h"
 
-#include "reone/audio/buffer.h"
+#include "reone/audio/clip.h"
 #include "reone/movie/movie.h"
 #include "reone/movie/videostream.h"
-#include "reone/resource/exception/format.h"
-#include "reone/resource/exception/notfound.h"
-#include "reone/system/binaryreader.h"
-#include "reone/system/logutil.h"
+#include "reone/system/exception/filenotfound.h"
+#include "reone/system/exception/validation.h"
 
 #ifdef R_ENABLE_MOVIE
 
@@ -38,7 +36,6 @@ extern "C" {
 #endif
 
 using namespace reone::audio;
-using namespace reone::resource;
 
 namespace reone {
 
@@ -46,7 +43,7 @@ namespace movie {
 
 #ifdef R_ENABLE_MOVIE
 
-class BinkVideoDecoder : public VideoStream {
+class BinkVideoDecoder : public movie::VideoStream {
 public:
     BinkVideoDecoder(std::filesystem::path path) :
         _path(std::move(path)) {
@@ -85,7 +82,7 @@ public:
 
     void load() {
         if (avformat_open_input(&_formatCtx, _path.string().c_str(), nullptr, nullptr) != 0) {
-            throw FormatException("Failed to open BIK file: " + _path.string());
+            throw ValidationException("Failed to open BIK file: " + _path.string());
         }
         findStreams();
 
@@ -103,7 +100,7 @@ public:
         if (hasAudio()) {
             openCodec(_audioStreamIdx, &_audioCodecCtx);
             initResamplingContext();
-            loadAudioBuffer();
+            loadAudioClip();
             seekBeginning();
         }
     }
@@ -113,7 +110,7 @@ public:
         loadVideoFrame(timestamp);
     }
 
-    std::shared_ptr<audio::AudioBuffer> audioStream() const { return _audioStream; }
+    std::shared_ptr<audio::AudioClip> audioStream() const { return _audioStream; }
 
 private:
     std::filesystem::path _path;
@@ -131,11 +128,11 @@ private:
     AVFrame *_avFrameScaled {nullptr};
     uint8_t *_frameBuffer {nullptr};
 
-    std::shared_ptr<audio::AudioBuffer> _audioStream;
+    std::shared_ptr<audio::AudioClip> _audioStream;
 
     void findStreams() {
         if (avformat_find_stream_info(_formatCtx, nullptr) != 0) {
-            throw FormatException("Failed to find BIK stream info");
+            throw ValidationException("Failed to find BIK stream info");
         }
         for (uint32_t i = 0; i < _formatCtx->nb_streams; ++i) {
             AVCodecParameters *codecParams = _formatCtx->streams[i]->codecpar;
@@ -151,7 +148,7 @@ private:
             }
         }
         if (_videoStreamIdx == -1) {
-            throw FormatException("Video stream not found in BIK");
+            throw ValidationException("Video stream not found in BIK");
         }
     }
 
@@ -159,14 +156,14 @@ private:
         AVCodecParameters *codecParams = _formatCtx->streams[streamIdx]->codecpar;
         const AVCodec *codec = avcodec_find_decoder(codecParams->codec_id);
         if (!codec) {
-            throw FormatException("BIK codec not found");
+            throw ValidationException("BIK codec not found");
         }
         *codecCtx = avcodec_alloc_context3(codec);
         if (avcodec_parameters_to_context(*codecCtx, codecParams) != 0) {
-            throw FormatException("Failed to copy BIK codec parameters");
+            throw ValidationException("Failed to copy BIK codec parameters");
         }
         if (avcodec_open2(*codecCtx, codec, nullptr) != 0) {
-            throw FormatException("Failed to open BIK codec");
+            throw ValidationException("Failed to open BIK codec");
         }
     }
 
@@ -195,12 +192,22 @@ private:
     }
 
     void initResamplingContext() {
+#if (LIBSWRESAMPLE_VERSION_MAJOR > 4) || \
+    (LIBSWRESAMPLE_VERSION_MAJOR == 4 && LIBSWRESAMPLE_VERSION_MINOR >= 7)
+        AVChannelLayout outChLayout(AV_CHANNEL_LAYOUT_MONO);
+        auto &inChLayout = _audioCodecCtx->ch_layout;
+        swr_alloc_set_opts2(
+            &_swrContext,
+            &outChLayout, AV_SAMPLE_FMT_S16, _audioCodecCtx->sample_rate,
+            &inChLayout, _audioCodecCtx->sample_fmt, _audioCodecCtx->sample_rate,
+            0, nullptr);
+#else
         _swrContext = swr_alloc_set_opts(
             nullptr,
             AV_CH_LAYOUT_MONO, AV_SAMPLE_FMT_S16, _audioCodecCtx->sample_rate,
             _audioCodecCtx->channel_layout, _audioCodecCtx->sample_fmt, _audioCodecCtx->sample_rate,
             0, nullptr);
-
+#endif
         swr_init(_swrContext);
     }
 
@@ -209,6 +216,7 @@ private:
 
         // Do nothing if last packet timestamp is greater or equals requested
         if (_lastPacketTimestamp != -1 && _lastPacketTimestamp >= timestamp) {
+            _frame.pixels.reset();
             return;
         }
 
@@ -217,29 +225,23 @@ private:
             if (packet.stream_index != _videoStreamIdx) {
                 continue;
             }
-
-            // Read packets until packet timestamp is greater or equals requested
             _lastPacketTimestamp = packet.pts;
+
+            avcodec_send_packet(_videoCodecCtx, &packet);
+            ret = avcodec_receive_frame(_videoCodecCtx, _avFrame);
+            if (ret == AVERROR(EAGAIN)) {
+                continue;
+            } else if (ret < 0) {
+                break;
+            }
+
             if (_lastPacketTimestamp < timestamp) {
                 continue;
             }
-
-            avcodec_send_packet(_videoCodecCtx, &packet);
-            if ((ret = avcodec_receive_frame(_videoCodecCtx, _avFrame)) < 0) {
-                if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
-                    continue;
-                } else {
-                    break;
-                }
-            }
-
-            // Scale frame
             sws_scale(
                 _swsContext,
                 _avFrame->data, _avFrame->linesize, 0, _videoCodecCtx->height,
                 _avFrameScaled->data, _avFrameScaled->linesize);
-
-            // Save frame
             auto pixels = std::make_shared<ByteBuffer>(3ll * _videoCodecCtx->width * _videoCodecCtx->height, '\0');
             for (int y = 0; y < _videoCodecCtx->height; ++y) {
                 int dstIdx = 3 * _videoCodecCtx->width * y;
@@ -256,8 +258,8 @@ private:
         av_packet_unref(&packet);
     }
 
-    void loadAudioBuffer() {
-        _audioStream = std::make_shared<AudioBuffer>();
+    void loadAudioClip() {
+        _audioStream = std::make_shared<AudioClip>();
 
         AVPacket packet;
         int ret;
@@ -278,7 +280,7 @@ private:
                     const_cast<const uint8_t **>(&_avFrame->extended_data[0]), _avFrame->nb_samples);
 
                 // Save frame
-                AudioBuffer::Frame frame;
+                AudioClip::Frame frame;
                 frame.format = AudioFormat::Mono16;
                 frame.sampleRate = _audioCodecCtx->sample_rate;
                 frame.samples = std::move(samples);
@@ -319,15 +321,15 @@ private:
 void BikReader::load() {
 #ifdef R_ENABLE_MOVIE
     if (!std::filesystem::exists(_path)) {
-        throw ResourceNotFoundException("BIK: file not found: " + _path.string());
+        throw FileNotFoundException("BIK: file not found: " + _path.string());
     }
 
     auto decoder = std::make_shared<BinkVideoDecoder>(_path);
     decoder->load();
 
-    _movie = std::make_shared<Movie>(_graphicsSvc, _audioSvc);
+    _movie = std::make_shared<Movie>(_graphicsSvc, _audioPlayer);
     _movie->setVideoStream(decoder);
-    _movie->setAudioBuffer(decoder->audioStream());
+    _movie->setAudioClip(decoder->audioStream());
     _movie->init();
 #endif
 }

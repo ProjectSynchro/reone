@@ -22,21 +22,19 @@ namespace reone {
 namespace audio {
 
 void AudioModule::init() {
-    _files = std::make_unique<AudioFiles>(_resource.resources());
-    _context = std::make_unique<AudioContext>();
-    _player = std::make_unique<AudioPlayer>(_options, *_files);
+    _context = std::make_unique<Context>();
+    _mixer = std::make_unique<AudioMixer>(_options);
 
     _context->init();
 
-    _services = std::make_unique<AudioServices>(*_context, *_files, *_player);
+    _services = std::make_unique<AudioServices>(*_context, *_mixer);
 }
 
 void AudioModule::deinit() {
     _services.reset();
 
-    _player.reset();
+    _mixer.reset();
     _context.reset();
-    _files.reset();
 }
 
 } // namespace audio

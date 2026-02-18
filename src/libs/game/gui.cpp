@@ -18,15 +18,15 @@
 #include "reone/game/gui.h"
 
 #include "reone/audio/di/services.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
 #include "reone/game/gui/sounds.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/textures.h"
 #include "reone/gui/guis.h"
 #include "reone/resource/di/services.h"
 #include "reone/resource/exception/notfound.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/scene/di/services.h"
 
 using namespace reone::audio;
@@ -75,7 +75,7 @@ void GameGUI::preload(IGUI &gui) {
     }
 }
 
-bool GameGUI::handle(const SDL_Event &event) {
+bool GameGUI::handle(const input::Event &event) {
     if (!_gui) {
         return false;
     }
@@ -86,14 +86,11 @@ void GameGUI::update(float dt) {
     if (_gui) {
         _gui->update(dt);
     }
-    if (_audioSource) {
-        _audioSource->update();
-    }
 }
 
-void GameGUI::draw() {
+void GameGUI::render() {
     if (_gui) {
-        _gui->draw();
+        _gui->render();
     }
 }
 
@@ -139,7 +136,7 @@ void GameGUI::loadBackground(BackgroundType type) {
     }
 
     if (_gui) {
-        _gui->setBackground(_services.graphics.textures.get(resRef, TextureUsage::Diffuse));
+        _gui->setBackground(_services.resource.textures.get(resRef, TextureUsage::MainTex));
     }
 }
 
@@ -148,12 +145,14 @@ std::string GameGUI::guiResRef(const std::string &base) const {
 }
 
 void GameGUI::onClick(const std::string &control) {
-    _audioSource = _services.audio.player.play(_services.game.guiSounds.getOnClick(), AudioType::Sound);
+    auto clip = _services.game.guiSounds.getOnClick();
+    _audioSource = _services.audio.mixer.play(std::move(clip), AudioType::Sound);
 }
 
-void GameGUI::onFocusChanged(const std::string &control, bool focus) {
-    if (focus) {
-        _audioSource = _services.audio.player.play(_services.game.guiSounds.getOnEnter(), AudioType::Sound);
+void GameGUI::onSelectionChanged(const std::string &control, bool selected) {
+    if (selected) {
+        auto clip = _services.game.guiSounds.getOnEnter();
+        _audioSource = _services.audio.mixer.play(std::move(clip), AudioType::Sound);
     }
 }
 

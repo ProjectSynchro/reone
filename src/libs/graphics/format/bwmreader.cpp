@@ -18,16 +18,14 @@
 #include "reone/graphics/format/bwmreader.h"
 
 #include "reone/graphics/walkmesh.h"
-#include "reone/resource/format/signutil.h"
-
-using namespace reone::resource;
+#include "reone/system/checkutil.h"
 
 namespace reone {
 
 namespace graphics {
 
 void BwmReader::load() {
-    checkSignature(_bwm, std::string("BWM V1.0", 8));
+    checkEqual("BWM signature", _bwm.readString(8), std::string("BWM V1.0", 8));
 
     _type = static_cast<WalkmeshType>(_bwm.readUint32());
 

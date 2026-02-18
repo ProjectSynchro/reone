@@ -19,10 +19,8 @@
 
 #include "reone/graphics/texture.h"
 #include "reone/graphics/textureutil.h"
-#include "reone/resource/exception/format.h"
+#include "reone/system/exception/validation.h"
 #include "reone/system/logutil.h"
-
-using namespace reone::resource;
 
 namespace reone {
 
@@ -51,13 +49,13 @@ void TgaReader::load() {
 
     uint8_t bpp = _tga.readByte();
     if ((isRGBA() && bpp != 24 && bpp != 32) || (isGrayscale() && bpp != 8)) {
-        throw FormatException("Unsupported bits per pixel: " + std::to_string(bpp));
+        throw ValidationException("Unsupported bits per pixel: " + std::to_string(bpp));
     }
 
     uint8_t descriptor = _tga.readByte();
     bool flipY = (descriptor & 0x10) != 0;
     if (flipY) {
-        throw FormatException("Vertically flipped images are not supported");
+        throw ValidationException("Vertically flipped images are not supported");
     }
 
     bool cubemap = height / width == kNumCubeFaces;
@@ -85,7 +83,10 @@ void TgaReader::loadTexture() {
     }
 
     PixelFormat format = isGrayscale() ? PixelFormat::R8 : (_alpha ? PixelFormat::BGRA8 : PixelFormat::BGR8);
-    _texture = std::make_shared<Texture>(_resRef, getTextureProperties(_usage));
+    _texture = std::make_shared<Texture>(
+        _resRef,
+        _numLayers == kNumCubeFaces ? TextureType::CubeMap : TextureType::TwoDim,
+        getTextureProperties(_usage));
     _texture->setPixels(_width, _height, format, std::move(layers));
 }
 

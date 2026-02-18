@@ -19,10 +19,9 @@
 
 #include "reone/graphics/context.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/window.h"
 #include "reone/gui/control/label.h"
 #include "reone/system/logutil.h"
 
@@ -195,7 +194,7 @@ void HUD::onGUILoaded() {
     _barkBubble->init();
 }
 
-bool HUD::handle(const SDL_Event &event) {
+bool HUD::handle(const input::Event &event) {
     if (_select.handle(event)) {
         return true;
     }
@@ -266,21 +265,21 @@ void HUD::update(float dt) {
     _controls.LBL_MAPBORDER->setVisible(_game.map().isLoaded());
 }
 
-void HUD::draw() {
-    _gui->draw();
+void HUD::render() {
+    _gui->render();
 
-    drawMinimap();
+    renderMinimap();
 
     Party &party = _game.party();
     for (int i = 0; i < party.getSize(); ++i) {
-        drawHealth(i);
+        renderHealth(i);
     }
 
-    _barkBubble->draw();
-    _select.draw();
+    _barkBubble->render();
+    _select.render();
 }
 
-void HUD::drawMinimap() {
+void HUD::renderMinimap() {
     const Control::Extent &extent = _controls.LBL_MAPVIEW->extent();
 
     glm::vec4 bounds;
@@ -290,10 +289,10 @@ void HUD::drawMinimap() {
     bounds[3] = static_cast<float>(extent.height);
 
     std::shared_ptr<Area> area(_game.module()->area());
-    _game.map().draw(Map::Mode::Minimap, bounds);
+    _game.map().render(Map::Mode::Minimap, bounds);
 }
 
-void HUD::drawHealth(int memberIndex) {
+void HUD::renderHealth(int memberIndex) {
     if (_game.isTSL())
         return;
 
@@ -314,14 +313,13 @@ void HUD::drawHealth(int memberIndex) {
     transform = glm::translate(transform, glm::vec3(_gui->controlOffset().x + extent.left + extent.width - 14.0f, _gui->controlOffset().y + extent.top + extent.height - h, 0.0f));
     transform = glm::scale(transform, glm::vec3(w, h, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
-        general.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
+        locals.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
     });
-    _services.graphics.shaders.use(ShaderProgramId::SimpleColor);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpColor));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
 void HUD::toggleCombat(bool enabled) {

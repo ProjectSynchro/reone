@@ -23,12 +23,13 @@
 #include "reone/game/portrait.h"
 #include "reone/game/portraits.h"
 #include "reone/game/script/runner.h"
-#include "reone/graphics/textures.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/script/types.h"
+
 
 using namespace reone::audio;
 
@@ -182,7 +183,7 @@ void PartySelection::prepare(const PartySelectionContext &ctx) {
 
         if (party.isMemberAvailable(i)) {
             std::string blueprintResRef(party.getAvailableMember(i));
-            std::shared_ptr<Gff> utc(_services.resource.gffs.get(blueprintResRef, ResourceType::Utc));
+            std::shared_ptr<Gff> utc(_services.resource.gffs.get(blueprintResRef, ResType::Utc));
             std::shared_ptr<Texture> portrait;
             int portraitId = utc->getInt("PortraitId", 0);
             if (portraitId > 0) {

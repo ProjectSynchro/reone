@@ -20,7 +20,9 @@
 #include <gmock/gmock.h>
 
 #include "reone/scene/di/services.h"
+#include "reone/scene/graph.h"
 #include "reone/scene/graphs.h"
+#include "reone/scene/render/pipeline.h"
 
 namespace reone {
 
@@ -29,6 +31,7 @@ namespace scene {
 class MockSceneGraph : public ISceneGraph, boost::noncopyable {
 public:
     MOCK_METHOD(void, update, (float dt), (override));
+    MOCK_METHOD(graphics::Texture &, render, (const glm::ivec2 &dim), (override));
 
     MOCK_METHOD(void, clear, (), (override));
 
@@ -49,8 +52,10 @@ public:
     MOCK_METHOD(bool, testWalk, (const glm::vec3 &, const glm::vec3 &, const IUser *, Collision &), (const override));
 
     MOCK_METHOD(ModelSceneNode *, pickModelAt, (int, int, IUser *), (const override));
+    MOCK_METHOD(std::optional<std::reference_wrapper<ModelSceneNode>>, pickModelRay, (const glm::vec3 &, const glm::vec3 &), (const override));
 
     MOCK_METHOD(const std::string &, name, (), (const override));
+    MOCK_METHOD(std::optional<std::reference_wrapper<CameraSceneNode>>, camera, (), (override));
 
     MOCK_METHOD(void, setAmbientLightColor, (glm::vec3), (override));
     MOCK_METHOD(void, setFog, (FogProperties fog), (override));
@@ -62,9 +67,9 @@ public:
     MOCK_METHOD(void, setActiveCamera, (CameraSceneNode *), (override));
     MOCK_METHOD(void, setUpdateRoots, (bool), (override));
 
-    MOCK_METHOD(void, setDrawAABB, (bool), (override));
-    MOCK_METHOD(void, setDrawWalkmeshes, (bool), (override));
-    MOCK_METHOD(void, setDrawTriggers, (bool), (override));
+    MOCK_METHOD(void, setRenderAABB, (bool), (override));
+    MOCK_METHOD(void, setRenderWalkmeshes, (bool), (override));
+    MOCK_METHOD(void, setRenderTriggers, (bool), (override));
 
     MOCK_METHOD(std::shared_ptr<CameraSceneNode>, newCamera, (), (override));
     MOCK_METHOD(std::shared_ptr<ModelSceneNode>, newModel, (graphics::Model &, ModelUsage), (override));
@@ -78,13 +83,6 @@ public:
     MOCK_METHOD(std::shared_ptr<ParticleSceneNode>, newParticle, (EmitterSceneNode & emitter), (override));
     MOCK_METHOD(std::shared_ptr<GrassSceneNode>, newGrass, (GrassProperties properties, graphics::ModelNode &aabbNode), (override));
     MOCK_METHOD(std::shared_ptr<GrassClusterSceneNode>, newGrassCluster, (GrassSceneNode & grass), (override));
-
-    MOCK_METHOD(void, drawShadows, (), (override));
-    MOCK_METHOD(void, drawOpaque, (), (override));
-    MOCK_METHOD(void, drawTransparent, (), (override));
-    MOCK_METHOD(void, drawLensFlares, (), (override));
-
-    MOCK_METHOD(void, fillLightingUniforms, (), (override));
 
     MOCK_METHOD(std::shared_ptr<graphics::Camera>, camera, (), (const override));
     MOCK_METHOD(const glm::vec3 &, ambientLightColor, (), (const override));
@@ -110,16 +108,36 @@ public:
     MOCK_METHOD(std::set<std::string>, sceneNames, (), (const override));
 };
 
+class MockRenderPipeline : public IRenderPipeline, boost::noncopyable {
+public:
+    MOCK_METHOD(void, init, (), (override));
+
+    MOCK_METHOD(void, reset, (), (override));
+    MOCK_METHOD(void, inRenderPass, (RenderPassName, std::function<void(IRenderPass &)>), (override));
+
+    MOCK_METHOD(graphics::Texture &, render, (), (override));
+};
+
+class MockRenderPipelineFactory : public IRenderPipelineFactory, boost::noncopyable {
+public:
+    MOCK_METHOD(std::unique_ptr<IRenderPipeline>, create, (RendererType, glm::ivec2), (override));
+};
+
 class TestSceneModule : boost::noncopyable {
 public:
     void init() {
         _graphs = std::make_unique<MockSceneGraphs>();
+        _renderPipelineFactory = std::make_unique<MockRenderPipelineFactory>();
 
-        _services = std::make_unique<SceneServices>(*_graphs);
+        _services = std::make_unique<SceneServices>(*_graphs, *_renderPipelineFactory);
     }
 
     MockSceneGraphs &graphs() {
         return *_graphs;
+    }
+
+    MockRenderPipelineFactory &renderPipelineFactory() {
+        return *_renderPipelineFactory;
     }
 
     SceneServices &services() {
@@ -128,6 +146,7 @@ public:
 
 private:
     std::unique_ptr<MockSceneGraphs> _graphs;
+    std::unique_ptr<MockRenderPipelineFactory> _renderPipelineFactory;
 
     std::unique_ptr<SceneServices> _services;
 };

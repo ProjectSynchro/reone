@@ -17,9 +17,9 @@
 
 #include "reone/game/d20/spells.h"
 
-#include "reone/graphics/textures.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/strings.h"
 
 using namespace reone::graphics;
@@ -30,7 +30,7 @@ namespace reone {
 namespace game {
 
 void Spells::init() {
-    std::shared_ptr<TwoDa> spells(_twoDas.get("spells"));
+    std::shared_ptr<TwoDA> spells(_twoDas.get("spells"));
     if (!spells)
         return;
 
@@ -38,7 +38,7 @@ void Spells::init() {
         std::string name(_strings.getText(spells->getInt(row, "name", -1)));
         std::string description(_strings.getText(spells->getInt(row, "spelldesc", -1)));
         std::shared_ptr<Texture> icon(_textures.get(spells->getString(row, "iconresref"), TextureUsage::GUI));
-        uint32_t pips = spells->getUint(row, "pips");
+        uint32_t pips = spells->getHexInt(row, "pips");
 
         auto spell = std::make_shared<Spell>();
         spell->name = std::move(name);

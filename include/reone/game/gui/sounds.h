@@ -21,17 +21,17 @@ namespace reone {
 
 namespace resource {
 
-class TwoDa;
-class TwoDas;
+class AudioClips;
+class TwoDA;
+class TwoDAs;
 
 } // namespace resource
 
 namespace audio {
 
-class AudioFiles;
-class AudioBuffer;
+class AudioClip;
 
-} // namespace audio
+}
 
 namespace game {
 
@@ -39,14 +39,14 @@ class IGUISounds {
 public:
     virtual ~IGUISounds() = default;
 
-    virtual std::shared_ptr<audio::AudioBuffer> getOnClick() const = 0;
-    virtual std::shared_ptr<audio::AudioBuffer> getOnEnter() const = 0;
+    virtual std::shared_ptr<audio::AudioClip> getOnClick() const = 0;
+    virtual std::shared_ptr<audio::AudioClip> getOnEnter() const = 0;
 };
 
 class GUISounds : public IGUISounds, boost::noncopyable {
 public:
-    GUISounds(audio::AudioFiles &audioFiles, resource::TwoDas &twoDas) :
-        _audioFiles(audioFiles),
+    GUISounds(resource::AudioClips &audioClips, resource::TwoDAs &twoDas) :
+        _audioClips(audioClips),
         _twoDas(twoDas) {
     }
 
@@ -55,17 +55,17 @@ public:
     void init();
     void deinit();
 
-    std::shared_ptr<audio::AudioBuffer> getOnClick() const override { return _onClick; }
-    std::shared_ptr<audio::AudioBuffer> getOnEnter() const override { return _onEnter; }
+    std::shared_ptr<audio::AudioClip> getOnClick() const override { return _onClick; }
+    std::shared_ptr<audio::AudioClip> getOnEnter() const override { return _onEnter; }
 
 private:
-    audio::AudioFiles &_audioFiles;
-    resource::TwoDas &_twoDas;
+    resource::AudioClips &_audioClips;
+    resource::TwoDAs &_twoDas;
 
-    std::shared_ptr<audio::AudioBuffer> _onClick;
-    std::shared_ptr<audio::AudioBuffer> _onEnter;
+    std::shared_ptr<audio::AudioClip> _onClick;
+    std::shared_ptr<audio::AudioClip> _onEnter;
 
-    void loadSound(const resource::TwoDa &twoDa, const std::string &label, std::shared_ptr<audio::AudioBuffer> &sound);
+    void loadSound(const resource::TwoDA &twoDa, const std::string &label, std::shared_ptr<audio::AudioClip> &sound);
 };
 
 } // namespace game

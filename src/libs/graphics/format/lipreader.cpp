@@ -18,18 +18,14 @@
 #include "reone/graphics/format/lipreader.h"
 
 #include "reone/graphics/lipanimation.h"
-#include "reone/resource/format/signutil.h"
-
-using namespace reone::resource;
+#include "reone/system/checkutil.h"
 
 namespace reone {
 
 namespace graphics {
 
 void LipReader::load() {
-    // based on https://github.com/KobaltBlu/KotOR.js/blob/master/js/resource/LIPObject.js
-
-    checkSignature(_lip, std::string("LIP V1.0", 8));
+    checkEqual("LIP signature", _lip.readString(8), std::string("LIP V1.0", 8));
 
     float length = _lip.readFloat();
     uint32_t entryCount = _lip.readUint32();

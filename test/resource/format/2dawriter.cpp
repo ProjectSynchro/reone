@@ -28,7 +28,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(two_da_writer, should_write_two_da) {
+TEST(TwoDAWriter, should_write_two_da) {
     // given
 
     auto expectedOutput = StringBuilder()
@@ -48,15 +48,15 @@ TEST(two_da_writer, should_write_two_da) {
                               .append("same\x00", 5)
                               .string();
 
-    auto twoDa = TwoDa(
-        {"key", "value"},
-        std::vector<TwoDa::Row> {
-            TwoDa::newRow({"unique", "same"}),
-            TwoDa::newRow({"same", "same"})});
+    auto twoDa = TwoDA::Builder()
+                     .columns({"key", "value"})
+                     .row({"unique", "same"})
+                     .row({"same", "same"})
+                     .build();
 
     auto bytes = ByteBuffer();
     auto stream = MemoryOutputStream(bytes);
-    auto writer = TwoDaWriter(twoDa);
+    auto writer = TwoDAWriter(*twoDa);
 
     // when
 

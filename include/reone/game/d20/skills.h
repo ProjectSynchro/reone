@@ -26,15 +26,10 @@ namespace reone {
 namespace resource {
 
 class Strings;
-class TwoDas;
-
-} // namespace resource
-
-namespace graphics {
-
+class TwoDAs;
 class Textures;
 
-}
+} // namespace resource
 
 namespace game {
 
@@ -48,9 +43,9 @@ public:
 class Skills : public ISkills, boost::noncopyable {
 public:
     Skills(
-        graphics::Textures &textures,
+        resource::Textures &textures,
         resource::Strings &strings,
-        resource::TwoDas &twoDas) :
+        resource::TwoDAs &twoDas) :
         _textures(textures),
         _strings(strings),
         _twoDas(twoDas) {
@@ -65,9 +60,9 @@ private:
 
     // Services
 
-    graphics::Textures &_textures;
+    resource::Textures &_textures;
     resource::Strings &_strings;
-    resource::TwoDas &_twoDas;
+    resource::TwoDAs &_twoDas;
 
     // END Services
 };

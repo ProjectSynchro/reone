@@ -19,10 +19,8 @@
 
 #include "reone/graphics/format/txireader.h"
 #include "reone/graphics/textureutil.h"
-#include "reone/resource/exception/format.h"
+#include "reone/system/exception/validation.h"
 #include "reone/system/stream/memoryinput.h"
-
-using namespace reone::resource;
 
 namespace reone {
 
@@ -98,7 +96,10 @@ void TpcReader::loadFeatures() {
 }
 
 void TpcReader::loadTexture() {
-    _texture = std::make_shared<Texture>(_resRef, getTextureProperties(_usage));
+    _texture = std::make_shared<Texture>(
+        _resRef,
+        _numLayers == kNumCubeFaces ? TextureType::CubeMap : TextureType::TwoDim,
+        getTextureProperties(_usage));
     _texture->setPixels(_width, _height, getPixelFormat(), _layers);
     _texture->setFeatures(_features);
 }
@@ -142,7 +143,7 @@ PixelFormat TpcReader::getPixelFormat() const {
         case EncodingType::RGBA:
             return PixelFormat::RGBA8;
         default:
-            throw FormatException("Unsupported uncompressed TPC encoding: " + std::to_string(static_cast<int>(_encoding)));
+            throw ValidationException("Unsupported uncompressed TPC encoding: " + std::to_string(static_cast<int>(_encoding)));
         }
     } else
         switch (_encoding) {
@@ -151,7 +152,7 @@ PixelFormat TpcReader::getPixelFormat() const {
         case EncodingType::RGBA:
             return PixelFormat::DXT5;
         default:
-            throw FormatException("Unsupported compressed TPC encoding: " + std::to_string(static_cast<int>(_encoding)));
+            throw ValidationException("Unsupported compressed TPC encoding: " + std::to_string(static_cast<int>(_encoding)));
         }
 }
 

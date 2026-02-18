@@ -19,9 +19,7 @@
 
 #include "reone/graphics/dxtutil.h"
 #include "reone/graphics/texture.h"
-#include "reone/resource/exception/format.h"
-
-using namespace reone::resource;
+#include "reone/system/exception/validation.h"
 
 namespace reone {
 
@@ -96,7 +94,7 @@ std::vector<uint8_t> TgaWriter::getTexturePixels(bool compress, TGADataType &dat
         depth = 32;
         break;
     default:
-        throw FormatException("Unsupported texture pixel format: " + std::to_string(static_cast<int>(_texture->pixelFormat())));
+        throw ValidationException("Unsupported texture pixel format: " + std::to_string(static_cast<int>(_texture->pixelFormat())));
     }
 
     int numLayers = static_cast<int>(_texture->layers().size());

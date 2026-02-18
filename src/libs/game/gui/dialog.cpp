@@ -17,17 +17,17 @@
 
 #include "reone/game/gui/dialog.h"
 
-#include "reone/audio/files.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/audio/source.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
 #include "reone/gui/control/panel.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/audioclips.h"
+#include "reone/resource/provider/models.h"
 #include "reone/scene/types.h"
-#include "reone/script/execution.h"
+#include "reone/script/virtualmachine.h"
 #include "reone/system/logutil.h"
 #include "reone/system/randomutil.h"
 
@@ -120,7 +120,7 @@ void DialogGUI::addFrame(std::string tag, int top, int height) {
     frame->setExtent(std::move(extent));
     frame->setBorderFill("blackfill");
 
-    _gui->addControl(std::move(frame));
+    _gui->addControlToFront(std::move(frame));
 }
 
 void DialogGUI::configureMessage() {
@@ -163,7 +163,7 @@ void DialogGUI::loadStuntParticipants() {
         participant.creature = creature;
 
         if (_dialog->isAnimatedCutscene()) {
-            std::shared_ptr<Model> model(_services.graphics.models.get(stunt.stuntModel));
+            std::shared_ptr<Model> model(_services.resource.models.get(stunt.stuntModel));
             if (!model) {
                 warn("Dialog: stunt model not found: " + stunt.stuntModel);
                 continue;
@@ -300,7 +300,7 @@ std::string DialogGUI::getStuntAnimationName(int ordinal) const {
 }
 
 AnimationType DialogGUI::getStuntAnimationType(int ordinal) const {
-    std::shared_ptr<TwoDa> animations(_services.resource.twoDas.get("dialoganimations"));
+    std::shared_ptr<TwoDA> animations(_services.resource.twoDas.get("dialoganimations"));
     int index = ordinal - 10000;
 
     if (index < 0 || index >= animations->getRowCount()) {

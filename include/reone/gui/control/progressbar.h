@@ -29,17 +29,17 @@ public:
         IGUI &gui,
         scene::ISceneGraphs &sceneGraphs,
         graphics::GraphicsServices &graphicsSvc,
-        resource::IStrings &strings) :
+        resource::ResourceServices &resourceSvc) :
         Control(
             gui,
             ControlType::ProgressBar,
             sceneGraphs,
             graphicsSvc,
-            strings) {
+            resourceSvc) {
     }
 
-    void load(const schema::GUI_BASECONTROL &gui, bool protoItem) override;
-    void draw(const glm::ivec2 &screenSize, const glm::ivec2 &offset, const std::vector<std::string> &text) override;
+    void load(const resource::generated::GUI_BASECONTROL &gui, bool protoItem) override;
+    void render(const glm::ivec2 &screenSize, const glm::ivec2 &offset, scene::IRenderPass &pass) override;
 
     void setValue(int value);
 

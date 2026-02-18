@@ -20,8 +20,10 @@
 #include "reone/audio/di/module.h"
 #include "reone/graphics/di/module.h"
 #include "reone/graphics/options.h"
+#include "reone/resource/di/module.h"
 
 #include "../graphs.h"
+#include "../render/pipeline.h"
 
 #include "services.h"
 
@@ -33,11 +35,13 @@ class SceneModule : boost::noncopyable {
 public:
     SceneModule(
         graphics::GraphicsOptions &graphicsOpt,
-        audio::AudioModule &audio,
-        graphics::GraphicsModule &graphics) :
+        resource::ResourceModule &resource,
+        graphics::GraphicsModule &graphics,
+        audio::AudioModule &audio) :
         _graphicsOpt(graphicsOpt),
-        _audio(audio),
-        _graphics(graphics) {
+        _resource(resource),
+        _graphics(graphics),
+        _audio(audio) {
     }
 
     ~SceneModule() { deinit(); }
@@ -46,6 +50,7 @@ public:
     void deinit();
 
     SceneGraphs &graphs() { return *_graphs; }
+    RenderPipelineFactory &renderPipelineFactory() { return *_renderPipelineFactory; }
 
     SceneServices &services() { return *_services; }
 
@@ -53,8 +58,10 @@ private:
     graphics::GraphicsOptions &_graphicsOpt;
     graphics::GraphicsModule &_graphics;
     audio::AudioModule &_audio;
+    resource::ResourceModule &_resource;
 
     std::unique_ptr<SceneGraphs> _graphs;
+    std::unique_ptr<RenderPipelineFactory> _renderPipelineFactory;
 
     std::unique_ptr<SceneServices> _services;
 };

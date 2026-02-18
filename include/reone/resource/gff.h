@@ -73,6 +73,72 @@ public:
 
         std::string toString() const;
 
+        Field deepCopy() const {
+            Field copy {type, label};
+            copy.strValue = strValue;
+            copy.vecValue = vecValue;
+            copy.quatValue = quatValue;
+            copy.data = data;
+            // TODO: memcpy?
+            copy.intValue = intValue;
+            copy.uintValue = uintValue;
+            copy.int64Value = int64Value;
+            copy.uint64Value = uint64Value;
+            copy.floatValue = floatValue;
+            copy.doubleValue = doubleValue;
+            // END TODO
+            for (const auto &child : children) {
+                copy.children.push_back(child->deepCopy());
+            }
+            return copy;
+        }
+
+        bool operator==(const Field &rhs) const {
+            if (this == &rhs) {
+                return true;
+            }
+            if (type != rhs.type) {
+                return false;
+            }
+            switch (type) {
+            case FieldType::Byte:
+            case FieldType::Word:
+            case FieldType::Dword:
+                return uintValue == rhs.uintValue;
+            case FieldType::Char:
+            case FieldType::Short:
+            case FieldType::Int:
+            case FieldType::StrRef:
+                return intValue == rhs.intValue;
+            case FieldType::Dword64:
+                return uint64Value == rhs.uint64Value;
+            case FieldType::Int64:
+                return int64Value == rhs.int64Value;
+            case FieldType::Float:
+                return floatValue == rhs.floatValue;
+            case FieldType::Double:
+                return doubleValue == rhs.doubleValue;
+            case FieldType::CExoString:
+            case FieldType::ResRef:
+                return strValue == rhs.strValue;
+            case FieldType::CExoLocString:
+                return intValue == rhs.intValue && strValue == rhs.strValue;
+            case FieldType::Void:
+                return data == rhs.data;
+            case FieldType::Struct:
+            case FieldType::List:
+                return children == rhs.children;
+            case FieldType::Orientation:
+                return quatValue == rhs.quatValue;
+            case FieldType::Vector:
+                return vecValue == rhs.vecValue;
+            }
+        }
+
+        inline bool operator!=(const Field &rhs) const {
+            return !operator==(rhs);
+        }
+
         static Field newByte(std::string label, uint32_t val);
         static Field newChar(std::string label, int32_t val);
         static Field newWord(std::string label, uint32_t val);
@@ -135,7 +201,20 @@ public:
     ByteBuffer getData(const std::string &name) const;
 
     uint32_t type() const { return _type; }
+    std::vector<Field> &fields() { return _fields; }
     const std::vector<Field> &fields() const { return _fields; }
+
+    void setType(uint32_t type) {
+        _type = type;
+    }
+
+    std::shared_ptr<Gff> deepCopy() const {
+        std::vector<Field> copyFields;
+        for (const auto &field : _fields) {
+            copyFields.push_back(std::move(field.deepCopy()));
+        }
+        return std::make_shared<Gff>(_type, std::move(copyFields));
+    }
 
     static inline glm::vec3 colorFromUint32(uint32_t value) {
         auto color = glm::vec3(

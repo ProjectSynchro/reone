@@ -36,23 +36,23 @@ class WalkmeshSceneNode : public SceneNode {
 public:
     WalkmeshSceneNode(
         graphics::Walkmesh &walkmesh,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             SceneNodeType::Walkmesh,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _walkmesh(walkmesh) {
 
         _point = false;
-
-        init();
     }
 
     void init();
-    void draw();
+    void render(IRenderPass &pass);
 
     const graphics::Walkmesh &walkmesh() const { return _walkmesh; }
 

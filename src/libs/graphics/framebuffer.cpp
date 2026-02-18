@@ -19,6 +19,7 @@
 
 #include "reone/graphics/renderbuffer.h"
 #include "reone/graphics/texture.h"
+#include "reone/system/exception/notimplemented.h"
 #include "reone/system/threadutil.h"
 
 namespace reone {
@@ -50,9 +51,11 @@ void Framebuffer::configure() {
     for (size_t i = 0; i < _colors.size(); ++i) {
         auto &color = _colors[i];
         if (color->isTexture()) {
-            attachTexture(static_cast<Texture &>(*color), Attachment::Color, i);
+            auto &texture = static_cast<Texture &>(*color);
+            attachTexture(texture, Attachment::Color, i);
         } else if (color->isRenderbuffer()) {
-            attachRenderbuffer(static_cast<Renderbuffer &>(*color), Attachment::Color, i);
+            auto &renderbuffer = static_cast<Renderbuffer &>(*color);
+            attachRenderbuffer(renderbuffer, Attachment::Color, i);
         }
     }
     if (_depth) {
@@ -85,16 +88,35 @@ static GLenum getAttachmentGL(Framebuffer::Attachment attachment, int index = 0)
 
 void Framebuffer::attachTexture(const Texture &texture, Attachment attachment, int index) const {
     auto attachmentGL = getAttachmentGL(attachment, index);
-    if (texture.isCubemap() || texture.is2DArray()) {
+    if (texture.isCubeMap() || texture.is2DArray()) {
         glFramebufferTexture(GL_FRAMEBUFFER, attachmentGL, texture.nameGL(), 0);
-    } else {
+    } else if (texture.is2D()) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, attachmentGL, GL_TEXTURE_2D, texture.nameGL(), 0);
+    } else {
+        throw NotImplementedException("Texture cannot be used as a framebuffer attachment");
     }
+}
+
+void Framebuffer::attachTextureLayer(const Texture &texture, int layer, int mip, Attachment attachment, int index) const {
+    auto attachmentGL = getAttachmentGL(attachment, index);
+    glFramebufferTextureLayer(
+        GL_FRAMEBUFFER,
+        attachmentGL,
+        texture.nameGL(),
+        mip,
+        layer);
 }
 
 void Framebuffer::attachRenderbuffer(const Renderbuffer &renderbuffer, Attachment attachment, int index) const {
     auto attachmentGL = getAttachmentGL(attachment, index);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachmentGL, GL_RENDERBUFFER, renderbuffer.nameGL());
+}
+
+void Framebuffer::checkCompleteness() {
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error(str(boost::format("Framebuffer %1% is not complete: %2%") % _nameGL % status));
+    }
 }
 
 } // namespace graphics

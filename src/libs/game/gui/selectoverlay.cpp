@@ -20,14 +20,13 @@
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/font.h"
-#include "reone/graphics/fonts.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/texture.h"
-#include "reone/graphics/textures.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/window.h"
+#include "reone/resource/provider/fonts.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/resources.h"
 
 #include "reone/game/action/attackobject.h"
@@ -70,31 +69,31 @@ SelectionOverlay::SelectionOverlay(
 }
 
 void SelectionOverlay::init() {
-    _font = _services.graphics.fonts.get("dialogfont16x16");
-    _friendlyReticle = _services.graphics.textures.get("friendlyreticle", TextureUsage::GUI);
-    _friendlyReticle2 = _services.graphics.textures.get("friendlyreticle2", TextureUsage::GUI);
-    _hostileReticle = _services.graphics.textures.get("hostilereticle", TextureUsage::GUI);
-    _hostileReticle2 = _services.graphics.textures.get("hostilereticle2", TextureUsage::GUI);
-    _friendlyScroll = _services.graphics.textures.get("lbl_miscroll_f", TextureUsage::GUI);
-    _hostileScroll = _services.graphics.textures.get("lbl_miscroll_h", TextureUsage::GUI);
-    _hilightedScroll = _services.graphics.textures.get("lbl_miscroll_hi", TextureUsage::GUI);
+    _font = _services.resource.fonts.get("dialogfont16x16");
+    _friendlyReticle = _services.resource.textures.get("friendlyreticle", TextureUsage::GUI);
+    _friendlyReticle2 = _services.resource.textures.get("friendlyreticle2", TextureUsage::GUI);
+    _hostileReticle = _services.resource.textures.get("hostilereticle", TextureUsage::GUI);
+    _hostileReticle2 = _services.resource.textures.get("hostilereticle2", TextureUsage::GUI);
+    _friendlyScroll = _services.resource.textures.get("lbl_miscroll_f", TextureUsage::GUI);
+    _hostileScroll = _services.resource.textures.get("lbl_miscroll_h", TextureUsage::GUI);
+    _hilightedScroll = _services.resource.textures.get("lbl_miscroll_hi", TextureUsage::GUI);
     _reticleHeight = _friendlyReticle2->height();
 }
 
-bool SelectionOverlay::handle(const SDL_Event &event) {
+bool SelectionOverlay::handle(const input::Event &event) {
     switch (event.type) {
-    case SDL_MOUSEMOTION:
+    case input::EventType::MouseMotion:
         return handleMouseMotion(event.motion);
-    case SDL_MOUSEBUTTONDOWN:
+    case input::EventType::MouseButtonDown:
         return handleMouseButtonDown(event.button);
-    case SDL_MOUSEWHEEL:
+    case input::EventType::MouseWheel:
         return handleMouseWheel(event.wheel);
     default:
         return false;
     }
 }
 
-bool SelectionOverlay::handleMouseMotion(const SDL_MouseMotionEvent &event) {
+bool SelectionOverlay::handleMouseMotion(const input::MouseMotionEvent &event) {
     _selectedActionSlot = -1;
 
     if (!_selectedObject)
@@ -112,8 +111,8 @@ bool SelectionOverlay::handleMouseMotion(const SDL_MouseMotionEvent &event) {
     return false;
 }
 
-bool SelectionOverlay::handleMouseButtonDown(const SDL_MouseButtonEvent &event) {
-    if (event.button != SDL_BUTTON_LEFT)
+bool SelectionOverlay::handleMouseButtonDown(const input::MouseButtonEvent &event) {
+    if (event.button != input::MouseButton::Left)
         return false;
     if (_selectedActionSlot == -1 || _selectedActionSlot >= _actionSlots.size())
         return false;
@@ -154,7 +153,7 @@ bool SelectionOverlay::handleMouseButtonDown(const SDL_MouseButtonEvent &event) 
     return true;
 }
 
-bool SelectionOverlay::handleMouseWheel(const SDL_MouseWheelEvent &event) {
+bool SelectionOverlay::handleMouseWheel(const input::MouseWheelEvent &event) {
     if (_selectedActionSlot == -1 || _selectedActionSlot >= _actionSlots.size())
         return false;
 
@@ -245,22 +244,22 @@ void SelectionOverlay::update() {
     }
 }
 
-void SelectionOverlay::draw() {
-    _services.graphics.context.withBlending(BlendMode::Normal, [this]() {
+void SelectionOverlay::render() {
+    _services.graphics.context.withBlendMode(BlendMode::Normal, [this]() {
         if (_hilightedObject) {
-            drawReticle(_hilightedHostile ? _hostileReticle : _friendlyReticle, _hilightedScreenCoords);
+            renderReticle(_hilightedHostile ? _hostileReticle : _friendlyReticle, _hilightedScreenCoords);
         }
         if (_selectedObject) {
-            drawReticle(_selectedHostile ? _hostileReticle2 : _friendlyReticle2, _selectedScreenCoords);
-            drawActionBar();
-            drawTitleBar();
-            drawHealthBar();
+            renderReticle(_selectedHostile ? _hostileReticle2 : _friendlyReticle2, _selectedScreenCoords);
+            renderActionBar();
+            renderTitleBar();
+            renderHealthBar();
         }
     });
 }
 
-void SelectionOverlay::drawReticle(std::shared_ptr<Texture> texture, const glm::vec3 &screenCoords) {
-    _services.graphics.textures.bind(*texture);
+void SelectionOverlay::renderReticle(std::shared_ptr<Texture> texture, const glm::vec3 &screenCoords) {
+    _services.graphics.context.bindTexture(*texture);
 
     const GraphicsOptions &opts = _game.options().graphics;
     int width = texture->width();
@@ -270,16 +269,15 @@ void SelectionOverlay::drawReticle(std::shared_ptr<Texture> texture, const glm::
     transform = glm::translate(transform, glm::vec3((opts.width * screenCoords.x) - width / 2, (opts.height * (1.0f - screenCoords.y)) - height / 2, 0.0f));
     transform = glm::scale(transform, glm::vec3(width, height, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
     });
-    _services.graphics.shaders.use(ShaderProgramId::GUI);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
-void SelectionOverlay::drawTitleBar() {
+void SelectionOverlay::renderTitleBar() {
     if (_selectedObject->name().empty())
         return;
 
@@ -296,15 +294,14 @@ void SelectionOverlay::drawTitleBar() {
         transform = glm::translate(transform, glm::vec3(x, y, 0.0f));
         transform = glm::scale(transform, glm::vec3(kTitleBarWidth, barHeight, 1.0f));
 
-        _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-            general.resetLocals();
-            general.projection = _services.graphics.window.getOrthoProjection();
-            general.model = std::move(transform);
-            general.color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            general.alpha = 0.5f;
+        _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+            locals.reset();
+            locals.model = std::move(transform);
+            locals.color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+            locals.color.a = 0.5f;
         });
-        _services.graphics.shaders.use(ShaderProgramId::SimpleColor);
-        _services.graphics.meshes.quad().draw();
+        _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpColor));
+        _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
     }
     {
         float x = opts.width * _selectedScreenCoords.x;
@@ -313,11 +310,11 @@ void SelectionOverlay::drawTitleBar() {
             y -= kActionHeight + 2 * kActionBarMargin;
         }
         glm::vec3 position(x, y, 0.0f);
-        _font->draw(_selectedObject->name(), position, getColorFromSelectedObject());
+        _font->render(_selectedObject->name(), position, getColorFromSelectedObject());
     }
 }
 
-void SelectionOverlay::drawHealthBar() {
+void SelectionOverlay::renderHealthBar() {
     const GraphicsOptions &opts = _game.options().graphics;
     float x = opts.width * _selectedScreenCoords.x - kTitleBarWidth / 2;
     float y = opts.height * (1.0f - _selectedScreenCoords.y) - _reticleHeight / 2.0f - kHealthBarHeight - kOffsetToReticle;
@@ -330,27 +327,26 @@ void SelectionOverlay::drawHealthBar() {
     transform = glm::translate(transform, glm::vec3(x, y, 0.0f));
     transform = glm::scale(transform, glm::vec3(w, kHealthBarHeight, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
-        general.color = glm::vec4(getColorFromSelectedObject(), 1.0f);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
+        locals.color = glm::vec4(getColorFromSelectedObject(), 1.0f);
     });
-    _services.graphics.shaders.use(ShaderProgramId::SimpleColor);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpColor));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
-void SelectionOverlay::drawActionBar() {
+void SelectionOverlay::renderActionBar() {
     if (!_hasActions)
         return;
 
     for (int i = 0; i < kNumActionSlots; ++i) {
-        drawActionFrame(i);
-        drawActionIcon(i);
+        renderActionFrame(i);
+        renderActionIcon(i);
     }
 }
 
-void SelectionOverlay::drawActionFrame(int index) {
+void SelectionOverlay::renderActionFrame(int index) {
     std::shared_ptr<Texture> frameTexture;
     if (index == _selectedActionSlot) {
         frameTexture = _hilightedScroll;
@@ -359,7 +355,7 @@ void SelectionOverlay::drawActionFrame(int index) {
     } else {
         frameTexture = _friendlyScroll;
     }
-    _services.graphics.textures.bind(*frameTexture);
+    _services.graphics.context.bindTexture(*frameTexture);
 
     float frameX, frameY;
     getActionScreenCoords(index, frameX, frameY);
@@ -368,13 +364,12 @@ void SelectionOverlay::drawActionFrame(int index) {
     transform = glm::translate(transform, glm::vec3(frameX, frameY, 0.0f));
     transform = glm::scale(transform, glm::vec3(kActionWidth, kActionHeight, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
     });
-    _services.graphics.shaders.use(ShaderProgramId::GUI);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
 bool SelectionOverlay::getActionScreenCoords(int index, float &x, float &y) const {
@@ -388,7 +383,7 @@ bool SelectionOverlay::getActionScreenCoords(int index, float &x, float &y) cons
     return true;
 }
 
-void SelectionOverlay::drawActionIcon(int index) {
+void SelectionOverlay::renderActionIcon(int index) {
     const ActionSlot &slot = _actionSlots[index];
     if (slot.indexSelected >= slot.actions.size())
         return;
@@ -397,7 +392,7 @@ void SelectionOverlay::drawActionIcon(int index) {
     const ContextAction &action = slot.actions[slot.indexSelected];
     switch (action.type) {
     case ActionType::AttackObject:
-        texture = _services.graphics.textures.get(g_attackIcon, TextureUsage::GUI);
+        texture = _services.resource.textures.get(g_attackIcon, TextureUsage::GUI);
         break;
     case ActionType::UseFeat: {
         std::shared_ptr<Feat> feat(_services.game.feats.get(action.feat));
@@ -419,7 +414,7 @@ void SelectionOverlay::drawActionIcon(int index) {
     if (!texture)
         return;
 
-    _services.graphics.textures.bind(*texture);
+    _services.graphics.context.bindTexture(*texture);
 
     float frameX, frameY;
     getActionScreenCoords(index, frameX, frameY);
@@ -431,13 +426,12 @@ void SelectionOverlay::drawActionIcon(int index) {
     transform = glm::translate(transform, glm::vec3(frameX, y, 0.0f));
     transform = glm::scale(transform, glm::vec3(kActionWidth, kActionWidth, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
     });
-    _services.graphics.shaders.use(ShaderProgramId::GUI);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
 glm::vec3 SelectionOverlay::getColorFromSelectedObject() const {

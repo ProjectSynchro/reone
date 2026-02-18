@@ -19,7 +19,6 @@
 
 #include "reone/graphics/format/mdlmdxreader.h"
 #include "reone/graphics/model.h"
-#include "reone/graphics/scene.h"
 #include "reone/system/stream/memoryinput.h"
 #include "reone/system/stringbuilder.h"
 
@@ -28,7 +27,7 @@
 using namespace reone;
 using namespace reone::graphics;
 
-TEST(mdl_reader, should_load_mdl) {
+TEST(MdlReader, should_load_mdl) {
     // given
     auto mdlBytes = StringBuilder()
                         // File Header (0)
@@ -101,9 +100,8 @@ TEST(mdl_reader, should_load_mdl) {
     auto mdl = MemoryInputStream(mdlBytes);
     auto mdxBytes = StringBuilder().string();
     auto mdx = MemoryInputStream(mdxBytes);
-    auto models = std::make_unique<MockModels>();
-    auto textures = std::make_unique<MockTextures>();
-    auto reader = MdlMdxReader(mdl, mdx, *models, *textures);
+    Statistic statistic;
+    auto reader = MdlMdxReader(mdl, mdx, statistic);
 
     // when
     reader.load();

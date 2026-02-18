@@ -21,12 +21,12 @@
 #include "reone/game/game.h"
 #include "reone/game/script/runner.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/walkmeshes.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/walkmeshes.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
@@ -43,23 +43,23 @@ namespace reone {
 
 namespace game {
 
-void Placeable::loadFromGIT(const schema::GIT_Placeable_List &git) {
+void Placeable::loadFromGIT(const resource::generated::GIT_Placeable_List &git) {
     std::string templateResRef(boost::to_lower_copy(git.TemplateResRef));
     loadFromBlueprint(templateResRef);
     loadTransformFromGIT(git);
 }
 
 void Placeable::loadFromBlueprint(const std::string &resRef) {
-    std::shared_ptr<Gff> utp(_services.resource.gffs.get(resRef, ResourceType::Utp));
+    std::shared_ptr<Gff> utp(_services.resource.gffs.get(resRef, ResType::Utp));
     if (!utp) {
         return;
     }
-    auto utpParsed = schema::parseUTP(*utp);
+    auto utpParsed = resource::generated::parseUTP(*utp);
     loadUTP(utpParsed);
-    std::shared_ptr<TwoDa> placeables(_services.resource.twoDas.get("placeables"));
+    std::shared_ptr<TwoDA> placeables(_services.resource.twoDas.get("placeables"));
     std::string modelName(boost::to_lower_copy(placeables->getString(_appearance, "modelname")));
 
-    auto model = _services.graphics.models.get(modelName);
+    auto model = _services.resource.models.get(modelName);
     if (!model) {
         return;
     }
@@ -67,17 +67,16 @@ void Placeable::loadFromBlueprint(const std::string &resRef) {
 
     auto sceneNode = sceneGraph.newModel(*model, ModelUsage::Placeable);
     sceneNode->setUser(*this);
-    sceneNode->setCullable(true);
     sceneNode->setDrawDistance(_game.options().graphics.drawDistance);
     _sceneNode = std::move(sceneNode);
 
-    auto walkmesh = _services.graphics.walkmeshes.get(modelName, ResourceType::Pwk);
+    auto walkmesh = _services.resource.walkmeshes.get(modelName, ResType::Pwk);
     if (walkmesh) {
         _walkmesh = sceneGraph.newWalkmesh(*walkmesh);
     }
 }
 
-void Placeable::loadTransformFromGIT(const schema::GIT_Placeable_List &git) {
+void Placeable::loadTransformFromGIT(const resource::generated::GIT_Placeable_List &git) {
     _position[0] = git.X;
     _position[1] = git.Y;
     _position[2] = git.Z;
@@ -99,7 +98,7 @@ void Placeable::runOnInvDisturbed(std::shared_ptr<Object> triggerrer) {
     }
 }
 
-void Placeable::loadUTP(const schema::UTP &utp) {
+void Placeable::loadUTP(const resource::generated::UTP &utp) {
     _tag = boost::to_lower_copy(utp.Tag);
     _name = _services.resource.strings.getText(utp.LocName.first);
     _blueprintResRef = boost::to_lower_copy(utp.TemplateResRef);

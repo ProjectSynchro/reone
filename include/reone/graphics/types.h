@@ -29,20 +29,23 @@ constexpr int kNumCubeFaces = 6;
 constexpr int kNumShadowCascades = 4;
 constexpr int kNumShadowLightSpace = 6;
 constexpr int kNumSSAOSamples = 64;
+constexpr int kNumSaberSegments = 20;
+constexpr int kNumSaberSegmentVertices = 4;
+constexpr int kNumLipShapes = 16;
 
 constexpr int kMaxBones = 24;
-constexpr int kMaxLights = 64;
+constexpr int kMaxDanglyVertices = 768;
+constexpr int kMaxLights = 32;
 constexpr int kMaxParticles = 64;
 constexpr int kMaxTextChars = 128;
 constexpr int kMaxGrassClusters = 256;
-constexpr int kMaxWalkmeshMaterials = 64;
-constexpr int kMaxPoints = 128;
+constexpr int kMaxWalkmeshMaterials = 32;
 
 enum class TextureUsage {
     Default,
     ColorBuffer,
     DepthBuffer,
-    Diffuse,
+    MainTex,
     Lightmap,
     EnvironmentMap,
     BumpMap,
@@ -77,6 +80,7 @@ enum class PixelFormat {
     BGRA8,
     DXT1,
     DXT5,
+    Depth24,
     Depth32F,
     Depth32FStencil8
 };
@@ -98,7 +102,7 @@ enum class DepthTestMode {
     Always
 };
 
-enum class CullFaceMode {
+enum class FaceCullMode {
     None,
     Front,
     Back
@@ -144,40 +148,30 @@ struct TextureUnits {
 
     static constexpr int mainTex = 0;
     static constexpr int lightmap = 1;
-    static constexpr int environmentMap = 2;
-    static constexpr int bumpMap = 3;
-    static constexpr int envmapColor = 4;
-    static constexpr int selfIllumColor = 5;
-    static constexpr int features = 6;
-    static constexpr int eyePos = 7;
-    static constexpr int eyeNormal = 8;
-    static constexpr int ssao = 9;
-    static constexpr int ssr = 10;
-    static constexpr int hilights = 11;
-    static constexpr int oitAccum = 12;
-    static constexpr int oitRevealage = 13;
-    static constexpr int noise = 14;
-
-    // Cubemaps
-
-    static constexpr int environmentMapCube = 15;
-    static constexpr int shadowMapCube = 16;
+    static constexpr int envMap = 2;
+    static constexpr int normalMap = 3;
+    static constexpr int gBufSelfIllum = 4;
+    static constexpr int gBufDepth = 5;
+    static constexpr int gBufEyeNormal = 6;
+    static constexpr int ssao = 7;
+    static constexpr int ssr = 8;
+    static constexpr int hilights = 9;
+    static constexpr int oitAccum = 10;
+    static constexpr int oitRevealage = 11;
+    static constexpr int noise = 12;
+    static constexpr int brdfLUT = 13;
 
     // Arrays
 
-    static constexpr int shadowMapArray = 17;
-};
+    static constexpr int bumpMapArray = 14;
+    static constexpr int shadowMapArray = 15;
+    static constexpr int irradianceMapArray = 16;
+    static constexpr int prefilteredEnvMapArray = 17;
 
-struct UniformBlockBindingPoints {
-    static constexpr int general = 0;
-    static constexpr int text = 1;
-    static constexpr int lighting = 2;
-    static constexpr int skeletal = 3;
-    static constexpr int particles = 4;
-    static constexpr int grass = 5;
-    static constexpr int ssao = 6;
-    static constexpr int walkmesh = 7;
-    static constexpr int points = 8;
+    // Cubemaps
+
+    static constexpr int envMapCube = 18;
+    static constexpr int shadowMapCube = 19;
 };
 
 // MDL
@@ -225,6 +219,74 @@ struct MdlNodeFlags {
     static constexpr int dangly = 0x100;
     static constexpr int aabb = 0x200;
     static constexpr int saber = 0x800;
+};
+
+using ControllerType = int;
+struct ControllerTypes {
+    static constexpr int position = 8;
+    static constexpr int orientation = 20;
+    static constexpr int scale = 36;
+
+    // Mesh
+    static constexpr int selfIllumColor = 100;
+    static constexpr int alpha = 132;
+
+    // Light
+    static constexpr int color = 76;
+    static constexpr int radius = 88;
+    static constexpr int shadowRadius = 96;
+    static constexpr int verticalDisplacement = 100;
+    static constexpr int multiplier = 140;
+
+    // Emitter
+    static constexpr int alphaEnd = 80;
+    static constexpr int alphaStart = 84;
+    static constexpr int birthrate = 88;
+    static constexpr int bounceCo = 92;
+    static constexpr int combineTime = 96;
+    static constexpr int drag = 100;
+    static constexpr int fps = 104;
+    static constexpr int frameEnd = 108;
+    static constexpr int frameStart = 112;
+    static constexpr int grav = 116;
+    static constexpr int lifeExp = 120;
+    static constexpr int mass = 124;
+    static constexpr int p2pBezier2 = 128;
+    static constexpr int p2pBezier3 = 132;
+    static constexpr int particleRot = 136;
+    static constexpr int randVel = 140;
+    static constexpr int sizeStart = 144;
+    static constexpr int sizeEnd = 148;
+    static constexpr int sizeStartY = 152;
+    static constexpr int sizeEndY = 156;
+    static constexpr int spread = 160;
+    static constexpr int threshold = 164;
+    static constexpr int velocity = 168;
+    static constexpr int xSize = 172;
+    static constexpr int ySize = 176;
+    static constexpr int blurLength = 180;
+    static constexpr int lightingDelay = 184;
+    static constexpr int lightingRadius = 188;
+    static constexpr int lightingScale = 192;
+    static constexpr int lightingSubDiv = 196;
+    static constexpr int lighitngZigZag = 200;
+    static constexpr int alphaMid = 216;
+    static constexpr int percentStart = 220;
+    static constexpr int percentMid = 224;
+    static constexpr int percentEnd = 228;
+    static constexpr int sizeMid = 232;
+    static constexpr int sizeMidY = 236;
+    static constexpr int randomBirthRate = 240;
+    static constexpr int targetSize = 252;
+    static constexpr int numControlPts = 256;
+    static constexpr int controlPtRadius = 260;
+    static constexpr int controlPtDelay = 264;
+    static constexpr int tangentSpread = 268;
+    static constexpr int tangentLength = 272;
+    static constexpr int colorMid = 284;
+    static constexpr int colorEnd = 380;
+    static constexpr int colorStart = 392;
+    static constexpr int detonate = 502;
 };
 
 // END MDL

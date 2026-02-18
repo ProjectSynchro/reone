@@ -21,13 +21,12 @@ namespace reone {
 
 namespace graphics {
 
-class IWindow;
+class IStatistic;
 
-class GraphicsContext;
-class Meshes;
-class Shaders;
+class Context;
+class MeshRegistry;
+class ShaderRegistry;
 class Texture;
-class Textures;
 class Uniforms;
 
 class Cursor : boost::noncopyable {
@@ -35,23 +34,21 @@ public:
     Cursor(
         std::shared_ptr<Texture> up,
         std::shared_ptr<Texture> down,
-        GraphicsContext &graphicsContext,
-        Meshes &meshes,
-        Shaders &shaders,
-        Textures &textures,
+        Context &context,
+        MeshRegistry &meshRegistry,
+        ShaderRegistry &shaderRegistry,
         Uniforms &uniforms,
-        IWindow &window) :
+        IStatistic &statistic) :
         _up(std::move(up)),
         _down(std::move(down)),
-        _graphicsContext(graphicsContext),
-        _meshes(meshes),
-        _shaders(shaders),
-        _textures(textures),
+        _context(context),
+        _meshRegistry(meshRegistry),
+        _shaderRegistry(shaderRegistry),
         _uniforms(uniforms),
-        _window(window) {
+        _statistic(statistic) {
     }
 
-    void draw();
+    void render();
 
     void setPosition(glm::ivec2 position) { _position = std::move(position); }
     void setPressed(bool pressed) { _pressed = pressed; }
@@ -65,12 +62,11 @@ private:
 
     // Services
 
-    GraphicsContext &_graphicsContext;
-    Meshes &_meshes;
-    Shaders &_shaders;
-    Textures &_textures;
+    Context &_context;
+    MeshRegistry &_meshRegistry;
+    ShaderRegistry &_shaderRegistry;
     Uniforms &_uniforms;
-    IWindow &_window;
+    IStatistic &_statistic;
 
     // END Services
 };

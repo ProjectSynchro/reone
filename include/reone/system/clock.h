@@ -23,18 +23,22 @@ class IClock {
 public:
     virtual ~IClock() = default;
 
-    virtual uint32_t ticks() const = 0;
+    virtual void init() = 0;
 
-    virtual uint64_t performanceFrequency() const = 0;
-    virtual uint64_t performanceCounter() const = 0;
+    virtual uint32_t millis() const = 0;
+    virtual uint64_t micros() const = 0;
 };
 
 class Clock : public IClock, boost::noncopyable {
 public:
-    uint32_t ticks() const override;
+    void init() override;
 
-    uint64_t performanceFrequency() const override;
-    uint64_t performanceCounter() const override;
+    uint32_t millis() const override;
+    uint64_t micros() const override;
+
+private:
+    uint64_t _freqOver1e3 {0};
+    uint64_t _freqOver1e6 {0};
 };
 
 } // namespace reone

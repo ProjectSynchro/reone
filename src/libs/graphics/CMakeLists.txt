@@ -18,7 +18,6 @@ set(GRAPHICS_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/libs/graphics)
 
 set(GRAPHICS_HEADERS
     ${GRAPHICS_INCLUDE_DIR}/aabb.h
-    ${GRAPHICS_INCLUDE_DIR}/animatedproperty.h
     ${GRAPHICS_INCLUDE_DIR}/animation.h
     ${GRAPHICS_INCLUDE_DIR}/attachment.h
     ${GRAPHICS_INCLUDE_DIR}/barycentricutil.h
@@ -30,9 +29,7 @@ set(GRAPHICS_HEADERS
     ${GRAPHICS_INCLUDE_DIR}/di/module.h
     ${GRAPHICS_INCLUDE_DIR}/di/services.h
     ${GRAPHICS_INCLUDE_DIR}/dxtutil.h
-    ${GRAPHICS_INCLUDE_DIR}/eventhandler.h
     ${GRAPHICS_INCLUDE_DIR}/font.h
-    ${GRAPHICS_INCLUDE_DIR}/fonts.h
     ${GRAPHICS_INCLUDE_DIR}/format/bwmreader.h
     ${GRAPHICS_INCLUDE_DIR}/format/curreader.h
     ${GRAPHICS_INCLUDE_DIR}/format/lipreader.h
@@ -43,24 +40,24 @@ set(GRAPHICS_HEADERS
     ${GRAPHICS_INCLUDE_DIR}/format/tpcreader.h
     ${GRAPHICS_INCLUDE_DIR}/format/txireader.h
     ${GRAPHICS_INCLUDE_DIR}/framebuffer.h
+    ${GRAPHICS_INCLUDE_DIR}/keyframetrack.h
     ${GRAPHICS_INCLUDE_DIR}/lipanimation.h
-    ${GRAPHICS_INCLUDE_DIR}/lips.h
     ${GRAPHICS_INCLUDE_DIR}/lumautil.h
+    ${GRAPHICS_INCLUDE_DIR}/material.h
     ${GRAPHICS_INCLUDE_DIR}/mesh.h
-    ${GRAPHICS_INCLUDE_DIR}/meshes.h
+    ${GRAPHICS_INCLUDE_DIR}/meshregistry.h
     ${GRAPHICS_INCLUDE_DIR}/model.h
     ${GRAPHICS_INCLUDE_DIR}/modelnode.h
-    ${GRAPHICS_INCLUDE_DIR}/models.h
     ${GRAPHICS_INCLUDE_DIR}/options.h
-    ${GRAPHICS_INCLUDE_DIR}/pipeline.h
+    ${GRAPHICS_INCLUDE_DIR}/pbrtextures.h
     ${GRAPHICS_INCLUDE_DIR}/pixelutil.h
     ${GRAPHICS_INCLUDE_DIR}/renderbuffer.h
-    ${GRAPHICS_INCLUDE_DIR}/scene.h
     ${GRAPHICS_INCLUDE_DIR}/shader.h
     ${GRAPHICS_INCLUDE_DIR}/shaderprogram.h
-    ${GRAPHICS_INCLUDE_DIR}/shaders.h
+    ${GRAPHICS_INCLUDE_DIR}/shaderregistry.h
+    ${GRAPHICS_INCLUDE_DIR}/statistic.h
     ${GRAPHICS_INCLUDE_DIR}/texture.h
-    ${GRAPHICS_INCLUDE_DIR}/textures.h
+    ${GRAPHICS_INCLUDE_DIR}/textureregistry.h
     ${GRAPHICS_INCLUDE_DIR}/textureutil.h
     ${GRAPHICS_INCLUDE_DIR}/textutil.h
     ${GRAPHICS_INCLUDE_DIR}/triangleutil.h
@@ -68,18 +65,17 @@ set(GRAPHICS_HEADERS
     ${GRAPHICS_INCLUDE_DIR}/uniformbuffer.h
     ${GRAPHICS_INCLUDE_DIR}/uniforms.h
     ${GRAPHICS_INCLUDE_DIR}/walkmesh.h
-    ${GRAPHICS_INCLUDE_DIR}/walkmeshes.h
     ${GRAPHICS_INCLUDE_DIR}/window.h)
 
 set(GRAPHICS_SOURCES
     ${GRAPHICS_SOURCE_DIR}/aabb.cpp
     ${GRAPHICS_SOURCE_DIR}/animation.cpp
+    ${GRAPHICS_SOURCE_DIR}/camera.cpp
     ${GRAPHICS_SOURCE_DIR}/context.cpp
     ${GRAPHICS_SOURCE_DIR}/cursor.cpp
     ${GRAPHICS_SOURCE_DIR}/di/module.cpp
     ${GRAPHICS_SOURCE_DIR}/dxtutil.cpp
     ${GRAPHICS_SOURCE_DIR}/font.cpp
-    ${GRAPHICS_SOURCE_DIR}/fonts.cpp
     ${GRAPHICS_SOURCE_DIR}/format/bwmreader.cpp
     ${GRAPHICS_SOURCE_DIR}/format/curreader.cpp
     ${GRAPHICS_SOURCE_DIR}/format/lipreader.cpp
@@ -91,26 +87,22 @@ set(GRAPHICS_SOURCES
     ${GRAPHICS_SOURCE_DIR}/format/txireader.cpp
     ${GRAPHICS_SOURCE_DIR}/framebuffer.cpp
     ${GRAPHICS_SOURCE_DIR}/lipanimation.cpp
-    ${GRAPHICS_SOURCE_DIR}/lipanimations.cpp
     ${GRAPHICS_SOURCE_DIR}/mesh.cpp
-    ${GRAPHICS_SOURCE_DIR}/meshes.cpp
+    ${GRAPHICS_SOURCE_DIR}/meshregistry.cpp
     ${GRAPHICS_SOURCE_DIR}/model.cpp
     ${GRAPHICS_SOURCE_DIR}/modelnode.cpp
-    ${GRAPHICS_SOURCE_DIR}/models.cpp
-    ${GRAPHICS_SOURCE_DIR}/pipeline.cpp
+    ${GRAPHICS_SOURCE_DIR}/pbrtextures.cpp
     ${GRAPHICS_SOURCE_DIR}/pixelutil.cpp
     ${GRAPHICS_SOURCE_DIR}/renderbuffer.cpp
     ${GRAPHICS_SOURCE_DIR}/shader.cpp
     ${GRAPHICS_SOURCE_DIR}/shaderprogram.cpp
-    ${GRAPHICS_SOURCE_DIR}/shaders.cpp
     ${GRAPHICS_SOURCE_DIR}/texture.cpp
-    ${GRAPHICS_SOURCE_DIR}/textures.cpp
+    ${GRAPHICS_SOURCE_DIR}/textureregistry.cpp
     ${GRAPHICS_SOURCE_DIR}/textureutil.cpp
     ${GRAPHICS_SOURCE_DIR}/textutil.cpp
     ${GRAPHICS_SOURCE_DIR}/uniformbuffer.cpp
     ${GRAPHICS_SOURCE_DIR}/uniforms.cpp
     ${GRAPHICS_SOURCE_DIR}/walkmesh.cpp
-    ${GRAPHICS_SOURCE_DIR}/walkmeshes.cpp
     ${GRAPHICS_SOURCE_DIR}/window.cpp)
 
 add_library(graphics STATIC ${GRAPHICS_HEADERS} ${GRAPHICS_SOURCES} ${CLANG_FORMAT_PATH})

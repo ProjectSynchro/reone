@@ -21,12 +21,11 @@
 #include "reone/game/game.h"
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/window.h"
 #include "reone/resource/gff.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/system/logutil.h"
 
 using namespace reone::graphics;
@@ -50,12 +49,12 @@ Map::Map(Game &game, ServicesView &services) :
     }
 }
 
-void Map::load(const std::string &area, const schema::ARE_Map &map) {
+void Map::load(const std::string &area, const resource::generated::ARE_Map &map) {
     loadProperties(map);
     loadTextures(area);
 }
 
-void Map::loadProperties(const schema::ARE_Map &map) {
+void Map::loadProperties(const resource::generated::ARE_Map &map) {
     _northAxis = map.NorthAxis;
     _worldPoint1 = glm::vec2(map.WorldPt1X, map.WorldPt1Y);
     _worldPoint2 = glm::vec2(map.WorldPt2X, map.WorldPt2Y);
@@ -65,34 +64,34 @@ void Map::loadProperties(const schema::ARE_Map &map) {
 
 void Map::loadTextures(const std::string &area) {
     std::string resRef("lbl_map" + area);
-    _areaTexture = _services.graphics.textures.get(resRef, TextureUsage::GUI);
+    _areaTexture = _services.resource.textures.get(resRef, TextureUsage::GUI);
 
     if (!_arrowTexture) {
-        _arrowTexture = _services.graphics.textures.get(_arrowResRef, TextureUsage::GUI);
+        _arrowTexture = _services.resource.textures.get(_arrowResRef, TextureUsage::GUI);
     }
     if (!_noteTexture) {
-        _noteTexture = _services.graphics.textures.get("whitetarget", TextureUsage::GUI);
+        _noteTexture = _services.resource.textures.get("whitetarget", TextureUsage::GUI);
     }
 }
 
-void Map::draw(Mode mode, const glm::vec4 &bounds) {
+void Map::render(Mode mode, const glm::vec4 &bounds) {
     if (!_areaTexture) {
         return;
     }
-    _services.graphics.context.withBlending(BlendMode::Normal, [this, &mode, &bounds]() {
-        drawArea(mode, bounds);
-        drawNotes(mode, bounds);
-        drawPartyLeader(mode, bounds);
+    _services.graphics.context.withBlendMode(BlendMode::Normal, [this, &mode, &bounds]() {
+        renderArea(mode, bounds);
+        renderNotes(mode, bounds);
+        renderPartyLeader(mode, bounds);
     });
 }
 
-void Map::drawArea(Mode mode, const glm::vec4 &bounds) {
+void Map::renderArea(Mode mode, const glm::vec4 &bounds) {
     if (mode == Mode::Minimap) {
         std::shared_ptr<Creature> partyLeader(_game.party().getLeader());
         if (!partyLeader) {
             return;
         }
-        _services.graphics.textures.bind(*_areaTexture);
+        _services.graphics.context.bindTexture(*_areaTexture);
 
         glm::vec2 worldPos(partyLeader->position());
         glm::vec2 mapPos(getMapPosition(worldPos));
@@ -105,41 +104,39 @@ void Map::drawArea(Mode mode, const glm::vec4 &bounds) {
         transform = glm::translate(transform, topLeft);
         transform = glm::scale(transform, glm::vec3(_areaTexture->width(), _areaTexture->height(), 1.0f));
 
-        _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-            general.resetLocals();
-            general.projection = _services.graphics.window.getOrthoProjection();
-            general.model = std::move(transform);
+        _services.graphics.uniforms.setLocals([transform](auto &locals) {
+            locals.reset();
+            locals.model = std::move(transform);
         });
-        _services.graphics.shaders.use(ShaderProgramId::GUI);
+        _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
 
         int height = _game.options().graphics.height;
         glm::ivec4 scissorBounds(bounds[0], height - (bounds[1] + bounds[3]), bounds[2], bounds[3]);
         _services.graphics.context.withScissorTest(scissorBounds, [&]() {
-            _services.graphics.meshes.quad().draw();
+            _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
         });
 
     } else {
-        _services.graphics.textures.bind(*_areaTexture);
+        _services.graphics.context.bindTexture(*_areaTexture);
 
         glm::mat4 transform(1.0f);
         transform = glm::translate(transform, glm::vec3(bounds[0], bounds[1], 0.0f));
         transform = glm::scale(transform, glm::vec3(bounds[2], bounds[3], 1.0f));
 
-        _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-            general.resetLocals();
-            general.projection = _services.graphics.window.getOrthoProjection();
-            general.model = std::move(transform);
+        _services.graphics.uniforms.setLocals([transform](auto &locals) {
+            locals.reset();
+            locals.model = std::move(transform);
         });
-        _services.graphics.shaders.use(ShaderProgramId::GUI);
-        _services.graphics.meshes.quad().draw();
+        _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+        _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
     }
 }
 
-void Map::drawNotes(Mode mode, const glm::vec4 &bounds) {
+void Map::renderNotes(Mode mode, const glm::vec4 &bounds) {
     if (mode != Mode::Default) {
         return;
     }
-    _services.graphics.textures.bind(*_noteTexture);
+    _services.graphics.context.bindTexture(*_noteTexture);
 
     for (auto &object : _game.module()->area()->getObjectsByType(ObjectType::Waypoint)) {
         auto waypoint = std::static_pointer_cast<Waypoint>(object);
@@ -164,14 +161,13 @@ void Map::drawNotes(Mode mode, const glm::vec4 &bounds) {
         auto guiColorHilight = _game.isTSL() ? kTSLGUIColorHilight : kGUIColorHilight;
         auto guiColorBase = _game.isTSL() ? kTSLGUIColorBase : kGUIColorBase;
 
-        _services.graphics.uniforms.setGeneral([&](auto &general) {
-            general.resetLocals();
-            general.projection = _services.graphics.window.getOrthoProjection();
-            general.model = std::move(transform);
-            general.color = glm::vec4(selected ? guiColorHilight : guiColorBase, 1.0f);
+        _services.graphics.uniforms.setLocals([&](auto &locals) {
+            locals.reset();
+            locals.model = std::move(transform);
+            locals.color = glm::vec4(selected ? guiColorHilight : guiColorBase, 1.0f);
         });
-        _services.graphics.shaders.use(ShaderProgramId::GUI);
-        _services.graphics.meshes.quad().draw();
+        _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+        _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
     }
 }
 
@@ -202,12 +198,12 @@ glm::vec2 Map::getMapPosition(const glm::vec2 &world) const {
     return result;
 }
 
-void Map::drawPartyLeader(Mode mode, const glm::vec4 &bounds) {
+void Map::renderPartyLeader(Mode mode, const glm::vec4 &bounds) {
     std::shared_ptr<Creature> partyLeader(_game.party().getLeader());
     if (!partyLeader) {
         return;
     }
-    _services.graphics.textures.bind(*_arrowTexture);
+    _services.graphics.context.bindTexture(*_arrowTexture);
 
     glm::vec3 arrowPos(0.0f);
 
@@ -247,13 +243,12 @@ void Map::drawPartyLeader(Mode mode, const glm::vec4 &bounds) {
     transform = glm::translate(transform, glm::vec3(-0.5f * kArrowSize, -0.5f * kArrowSize, 0.0f));
     transform = glm::scale(transform, glm::vec3(kArrowSize, kArrowSize, 1.0f));
 
-    _services.graphics.uniforms.setGeneral([this, transform](auto &general) {
-        general.resetLocals();
-        general.projection = _services.graphics.window.getOrthoProjection();
-        general.model = std::move(transform);
+    _services.graphics.uniforms.setLocals([this, transform](auto &locals) {
+        locals.reset();
+        locals.model = std::move(transform);
     });
-    _services.graphics.shaders.use(ShaderProgramId::GUI);
-    _services.graphics.meshes.quad().draw();
+    _services.graphics.context.useProgram(_services.graphics.shaderRegistry.get(ShaderProgramId::mvpTexture));
+    _services.graphics.meshRegistry.get(MeshName::quad).draw(_services.graphics.statistic);
 }
 
 } // namespace game

@@ -24,7 +24,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(erf_reader, should_read_erf) {
+TEST(ErfReader, should_read_erf) {
     // given
 
     auto input = StringBuilder()
@@ -64,8 +64,8 @@ TEST(erf_reader, should_read_erf) {
     EXPECT_EQ(1, reader.keys().size());
     EXPECT_EQ(1, reader.resources().size());
     auto &key = reader.keys().front();
-    EXPECT_EQ("aa", key.resId.resRef);
-    EXPECT_EQ(static_cast<int>(ResourceType::Txi), static_cast<int>(key.resId.type));
+    EXPECT_EQ("aa", key.resId.resRef.value());
+    EXPECT_EQ(static_cast<int>(ResType::Txi), static_cast<int>(key.resId.type));
     auto &resource = reader.resources().front();
     EXPECT_EQ(192, resource.offset);
     EXPECT_EQ(2, resource.size);

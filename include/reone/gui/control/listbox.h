@@ -46,15 +46,15 @@ public:
         IGUI &gui,
         scene::ISceneGraphs &sceneGraphs,
         graphics::GraphicsServices &graphicsSvc,
-        resource::IStrings &strings) :
+        resource::ResourceServices &resourceSvc) :
         Control(
             gui,
             ControlType::ListBox,
             sceneGraphs,
             graphicsSvc,
-            strings) {
+            resourceSvc) {
 
-        _clickable = true;
+        _selectable = true;
     }
 
     void clearItems();
@@ -63,16 +63,16 @@ public:
 
     void clearSelection();
 
-    void load(const schema::GUI_BASECONTROL &gui, bool protoItem) override;
+    void load(const resource::generated::GUI_BASECONTROL &gui, bool protoItem) override;
     bool handleMouseMotion(int x, int y) override;
     bool handleMouseWheel(int x, int y) override;
     bool handleClick(int x, int y) override;
-    void draw(const glm::ivec2 &screenSize, const glm::ivec2 &offset, const std::vector<std::string> &text) override;
+    void render(const glm::ivec2 &screenSize, const glm::ivec2 &offset, scene::IRenderPass &pass) override;
     void stretch(float x, float y, int mask) override;
 
     void changeProtoItemType(ControlType type);
 
-    void setFocus(bool focus) override;
+    void setSelected(bool selected) override;
     void setExtent(Extent extent) override;
     void setExtentHeight(int height) override;
     void setSelectionMode(SelectionMode mode);

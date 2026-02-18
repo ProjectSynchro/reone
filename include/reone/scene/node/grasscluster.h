@@ -26,14 +26,16 @@ namespace scene {
 class GrassClusterSceneNode : public SceneNode {
 public:
     GrassClusterSceneNode(
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             SceneNodeType::GrassCluster,
             sceneGraph,
             graphicsSvc,
-            audioSvc) {
+            audioSvc,
+            resourceSvc) {
         _point = false;
     }
 

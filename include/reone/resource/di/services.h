@@ -21,26 +21,94 @@ namespace reone {
 
 namespace resource {
 
+class IAudioClips;
+class ICursors;
+class IDialogs;
+class IFonts;
 class IGffs;
+class ILayouts;
+class ILips;
+class ILtrs;
+class IModels;
+class IMovies;
+class IPaths;
+class IResourceDirector;
 class IResources;
+class IScripts;
+class IShaders;
+class ISoundSets;
 class IStrings;
-class ITwoDas;
+class ITextures;
+class ITwoDAs;
+class IVisibilities;
+class IWalkmeshes;
 
 struct ResourceServices {
     IGffs &gffs;
     IResources &resources;
     IStrings &strings;
-    ITwoDas &twoDas;
+    ITwoDAs &twoDas;
+    IScripts &scripts;
+    IMovies &movies;
+    IAudioClips &audioClips;
+    ICursors &cursors;
+    IFonts &fonts;
+    ILips &lips;
+    IModels &models;
+    ITextures &textures;
+    IWalkmeshes &walkmeshes;
+    IDialogs &dialogs;
+    ILayouts &layouts;
+    IPaths &paths;
+    ISoundSets &soundSets;
+    IVisibilities &visibilities;
+    ILtrs &ltrs;
+    IShaders &shaders;
+    IResourceDirector &director;
 
     ResourceServices(
         IGffs &gffs,
         IResources &resources,
         IStrings &strings,
-        ITwoDas &twoDas) :
+        ITwoDAs &twoDas,
+        IScripts &scripts,
+        IMovies &movies,
+        IAudioClips &audioClips,
+        ICursors &cursors,
+        IFonts &fonts,
+        ILips &lips,
+        IModels &models,
+        ITextures &textures,
+        IWalkmeshes &walkmeshes,
+        IDialogs &dialogs,
+        ILayouts &layouts,
+        IPaths &paths,
+        ISoundSets &soundSets,
+        IVisibilities &visibilities,
+        ILtrs &ltrs,
+        IShaders &shaders,
+        IResourceDirector &director) :
         gffs(gffs),
         resources(resources),
         strings(strings),
-        twoDas(twoDas) {
+        twoDas(twoDas),
+        scripts(scripts),
+        movies(movies),
+        audioClips(audioClips),
+        cursors(cursors),
+        fonts(fonts),
+        lips(lips),
+        models(models),
+        textures(textures),
+        walkmeshes(walkmeshes),
+        dialogs(dialogs),
+        layouts(layouts),
+        paths(paths),
+        soundSets(soundSets),
+        visibilities(visibilities),
+        ltrs(ltrs),
+        shaders(shaders),
+        director(director) {
     }
 };
 

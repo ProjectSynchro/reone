@@ -18,9 +18,9 @@
 #include "reone/game/gui/chargen.h"
 
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
 #include "reone/gui/control/label.h"
 #include "reone/gui/sceneinitializer.h"
+#include "reone/resource/provider/models.h"
 #include "reone/resource/resources.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
@@ -138,7 +138,7 @@ void CharacterGeneration::loadLevelUp() {
     _levelUp->init();
 }
 
-bool CharacterGeneration::handle(const SDL_Event &event) {
+bool CharacterGeneration::handle(const input::Event &event) {
     if (getSubGUI()->handle(event)) {
         return true;
     }
@@ -177,9 +177,9 @@ void CharacterGeneration::update(float dt) {
     getSubGUI()->update(dt);
 }
 
-void CharacterGeneration::draw() {
-    GameGUI::draw();
-    getSubGUI()->draw();
+void CharacterGeneration::render() {
+    GameGUI::render();
+    getSubGUI()->render();
 }
 
 void CharacterGeneration::openClassSelection() {
@@ -190,7 +190,7 @@ void CharacterGeneration::openClassSelection() {
 void CharacterGeneration::changeScreen(CharGenScreen screen) {
     auto gui = getSubGUI();
     if (gui) {
-        gui->resetFocus();
+        gui->clearSelection();
     }
     _screen = screen;
 }
@@ -387,10 +387,9 @@ std::shared_ptr<ModelSceneNode> CharacterGeneration::getCharacterModel(ISceneGra
     creature->setAppearance(_character.appearance);
     creature->equip("g_a_clothes01");
     creature->loadAppearance();
-    creature->sceneNode()->setCullable(false);
     creature->updateModelAnimation();
 
-    auto model = sceneGraph.newModel(*_services.graphics.models.get("cgbody_light"), ModelUsage::GUI);
+    auto model = sceneGraph.newModel(*_services.resource.models.get("cgbody_light"), ModelUsage::GUI);
     model->attach("cgbody_light", *creature->sceneNode());
 
     return model;

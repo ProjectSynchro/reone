@@ -29,14 +29,16 @@ class ParticleSceneNode : public SceneNode {
 public:
     ParticleSceneNode(
         const EmitterSceneNode &emitter,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             SceneNodeType::Particle,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _emitter(emitter) {
 
         _point = false;

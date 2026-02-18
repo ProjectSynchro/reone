@@ -20,6 +20,7 @@
 #include "reone/audio/source.h"
 #include "reone/game/di/services.h"
 #include "reone/gui/gui.h"
+#include "reone/input/event.h"
 
 #include "types.h"
 
@@ -33,12 +34,12 @@ class GameGUI : public gui::IGUIEventListener, boost::noncopyable {
 public:
     virtual void init();
 
-    virtual bool handle(const SDL_Event &event);
+    virtual bool handle(const input::Event &event);
     virtual void update(float dt);
-    virtual void draw();
+    virtual void render();
 
-    void resetFocus() {
-        _gui->resetFocus();
+    void clearSelection() {
+        _gui->clearSelection();
     }
 
 protected:
@@ -62,7 +63,7 @@ protected:
 
     virtual void configureControls() {}
     void onClick(const std::string &control) override;
-    void onFocusChanged(const std::string &control, bool focus) override;
+    void onSelectionChanged(const std::string &control, bool selected) override;
 
     std::string guiResRef(const std::string &base) const;
 

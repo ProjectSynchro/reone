@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "reone/input/event.h"
+
 #include "../camera.h"
 
 namespace reone {
@@ -43,7 +45,7 @@ public:
 
     void load();
 
-    bool handle(const SDL_Event &event) override;
+    bool handle(const input::Event &event) override;
     void update(float dt) override;
     void stopMovement() override;
 
@@ -51,20 +53,27 @@ public:
     void setFacing(float facing);
 
 private:
+    enum class MovementDirection {
+        None,
+        Right,
+        Left,
+        Forward,
+        Back,
+        Up,
+        Down
+    };
+
     float _fovy;
     float _aspect;
 
     glm::vec3 _position {0.0f};
     float _pitch {0.0f};
     float _multiplier {1.0f};
-    bool _moveForward {false};
-    bool _moveLeft {false};
-    bool _moveBackward {false};
-    bool _moveRight {false};
+    MovementDirection _moveDir {MovementDirection::None};
 
-    bool handleMouseMotion(const SDL_MouseMotionEvent &event);
-    bool handleKeyDown(const SDL_KeyboardEvent &event);
-    bool handleKeyUp(const SDL_KeyboardEvent &event);
+    bool handleMouseMotion(const input::MouseMotionEvent &event);
+    bool handleKeyDown(const input::KeyEvent &event);
+    bool handleKeyUp(const input::KeyEvent &event);
 
     void updateSceneNode();
 };

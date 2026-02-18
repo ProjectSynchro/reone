@@ -18,19 +18,19 @@
 #include "reone/game/object/door.h"
 
 #include "reone/graphics/di/services.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/walkmeshes.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/scripts.h"
+#include "reone/resource/provider/walkmeshes.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
 #include "reone/scene/graphs.h"
 #include "reone/scene/node/model.h"
 #include "reone/scene/types.h"
-#include "reone/script/scripts.h"
 
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
@@ -44,7 +44,7 @@ namespace reone {
 
 namespace game {
 
-void Door::loadFromGIT(const schema::GIT_Door_List &git) {
+void Door::loadFromGIT(const resource::generated::GIT_Door_List &git) {
     std::string templateResRef(boost::to_lower_copy(git.TemplateResRef));
     loadFromBlueprint(templateResRef);
 
@@ -57,16 +57,16 @@ void Door::loadFromGIT(const schema::GIT_Door_List &git) {
 }
 
 void Door::loadFromBlueprint(const std::string &resRef) {
-    std::shared_ptr<Gff> utd(_services.resource.gffs.get(resRef, ResourceType::Utd));
+    std::shared_ptr<Gff> utd(_services.resource.gffs.get(resRef, ResType::Utd));
     if (!utd) {
         return;
     }
-    auto utdParsed = schema::parseUTD(*utd);
+    auto utdParsed = resource::generated::parseUTD(*utd);
     loadUTD(utdParsed);
-    std::shared_ptr<TwoDa> doors(_services.resource.twoDas.get("genericdoors"));
+    std::shared_ptr<TwoDA> doors(_services.resource.twoDas.get("genericdoors"));
     std::string modelName(boost::to_lower_copy(doors->getString(_genericType, "modelname")));
 
-    auto model = _services.graphics.models.get(modelName);
+    auto model = _services.resource.models.get(modelName);
     if (!model) {
         return;
     }
@@ -74,24 +74,23 @@ void Door::loadFromBlueprint(const std::string &resRef) {
 
     auto modelSceneNode = sceneGraph.newModel(*model, ModelUsage::Door);
     modelSceneNode->setUser(*this);
-    modelSceneNode->setCullable(true);
     // modelSceneNode->setDrawDistance(_game.options().graphics.drawDistance);
     _sceneNode = std::move(modelSceneNode);
 
-    auto walkmeshClosed = _services.graphics.walkmeshes.get(modelName + "0", ResourceType::Dwk);
+    auto walkmeshClosed = _services.resource.walkmeshes.get(modelName + "0", ResType::Dwk);
     if (walkmeshClosed) {
         _walkmeshClosed = sceneGraph.newWalkmesh(*walkmeshClosed);
         _walkmeshClosed->setUser(*this);
     }
 
-    auto walkmeshOpen1 = _services.graphics.walkmeshes.get(modelName + "1", ResourceType::Dwk);
+    auto walkmeshOpen1 = _services.resource.walkmeshes.get(modelName + "1", ResType::Dwk);
     if (walkmeshOpen1) {
         _walkmeshOpen1 = sceneGraph.newWalkmesh(*walkmeshOpen1);
         _walkmeshOpen1->setUser(*this);
         _walkmeshOpen1->setEnabled(false);
     }
 
-    auto walkmeshOpen2 = _services.graphics.walkmeshes.get(modelName + "2", ResourceType::Dwk);
+    auto walkmeshOpen2 = _services.resource.walkmeshes.get(modelName + "2", ResType::Dwk);
     if (walkmeshOpen2) {
         _walkmeshOpen2 = sceneGraph.newWalkmesh(*walkmeshOpen2);
         _walkmeshOpen2->setUser(*this);
@@ -99,7 +98,7 @@ void Door::loadFromBlueprint(const std::string &resRef) {
     }
 }
 
-void Door::loadTransformFromGIT(const schema::GIT_Door_List &git) {
+void Door::loadTransformFromGIT(const resource::generated::GIT_Door_List &git) {
     _position[0] = git.X;
     _position[1] = git.Y;
     _position[2] = git.Z;
@@ -153,7 +152,7 @@ void Door::setLocked(bool locked) {
     _locked = locked;
 }
 
-void Door::loadUTD(const schema::UTD &utd) {
+void Door::loadUTD(const resource::generated::UTD &utd) {
     _tag = boost::to_lower_copy(utd.Tag);
     _name = _services.resource.strings.getText(utd.LocName.first);
     _blueprintResRef = boost::to_lower_copy(utd.TemplateResRef);

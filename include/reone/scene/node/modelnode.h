@@ -28,25 +28,39 @@ namespace scene {
 
 class ModelNodeSceneNode : public SceneNode {
 public:
-    const graphics::ModelNode &modelNode() const { return _modelNode; }
+    const graphics::ModelNode &modelNode() const {
+        return _modelNode;
+    }
 
-    virtual void setDiffuseMap(graphics::Texture *texture);
+    bool isStatic() const {
+        return _static;
+    }
+
+    void setStatic(bool stat) {
+        _static = stat;
+    }
+
+    virtual void setMainTexture(graphics::Texture *texture);
     virtual void setEnvironmentMap(graphics::Texture *texture);
 
 protected:
     graphics::ModelNode &_modelNode;
 
+    bool _static {false};
+
     ModelNodeSceneNode(
         graphics::ModelNode &modelNode,
         SceneNodeType type,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             type,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _modelNode(modelNode) {
     }
 };

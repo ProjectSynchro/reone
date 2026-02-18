@@ -27,17 +27,17 @@ class IInputStream;
 
 namespace audio {
 
-class AudioBuffer;
+class AudioClip;
 
 class Mp3Reader : boost::noncopyable {
 public:
     virtual void load(IInputStream &stream);
 
-    std::shared_ptr<AudioBuffer> stream() const { return _stream; }
+    std::shared_ptr<AudioClip> stream() const { return _stream; }
 
 private:
     ByteBuffer _input;
-    std::shared_ptr<AudioBuffer> _stream;
+    std::shared_ptr<AudioClip> _stream;
     bool _done {false};
 
     static mad_flow inputFunc(void *playbuf, mad_stream *stream);

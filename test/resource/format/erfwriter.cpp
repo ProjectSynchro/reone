@@ -26,7 +26,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(erf_writer, should_write_erf) {
+TEST(ErfWriter, should_write_erf) {
     // given
 
     auto expectedOutput = StringBuilder()
@@ -58,7 +58,7 @@ TEST(erf_writer, should_write_erf) {
     auto stream = MemoryOutputStream(bytes);
 
     auto writer = ErfWriter();
-    writer.add(ErfWriter::Resource {"Aa", ResourceType::Txi, ByteBuffer {'B', 'b'}});
+    writer.add(ErfWriter::Resource {"Aa", ResType::Txi, ByteBuffer {'B', 'b'}});
 
     // when
 

@@ -20,28 +20,28 @@
 #include "reone/game/camerastyles.h"
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
-#include "reone/game/layouts.h"
 #include "reone/game/location.h"
 #include "reone/game/party.h"
-#include "reone/game/paths.h"
 #include "reone/game/reputes.h"
 #include "reone/game/room.h"
 #include "reone/game/script/runner.h"
 #include "reone/game/surfaces.h"
 #include "reone/game/types.h"
-#include "reone/game/visibilities.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/models.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/meshregistry.h"
 #include "reone/graphics/walkmesh.h"
-#include "reone/graphics/walkmeshes.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
 #include "reone/resource/exception/notfound.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/gffs.h"
+#include "reone/resource/provider/layouts.h"
+#include "reone/resource/provider/models.h"
+#include "reone/resource/provider/paths.h"
+#include "reone/resource/provider/textures.h"
+#include "reone/resource/provider/visibilities.h"
+#include "reone/resource/provider/walkmeshes.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/collision.h"
@@ -115,8 +115,8 @@ void Area::init() {
 void Area::load(std::string name, const Gff &are, const Gff &git, bool fromSave) {
     _name = std::move(name);
 
-    auto areParsed = schema::parseARE(are);
-    auto gitParsed = schema::parseGIT(git);
+    auto areParsed = resource::generated::parseARE(are);
+    auto gitParsed = resource::generated::parseGIT(git);
 
     loadARE(areParsed);
     loadGIT(gitParsed);
@@ -125,7 +125,7 @@ void Area::load(std::string name, const Gff &are, const Gff &git, bool fromSave)
     loadPTH();
 }
 
-void Area::loadARE(const schema::ARE &are) {
+void Area::loadARE(const resource::generated::ARE &are) {
     _localizedName = _services.resource.strings.getText(are.Name.first);
 
     loadCameraStyle(are);
@@ -137,7 +137,7 @@ void Area::loadARE(const schema::ARE &are) {
     loadFog(are);
 }
 
-void Area::loadCameraStyle(const schema::ARE &are) {
+void Area::loadCameraStyle(const resource::generated::ARE &are) {
     // Area
     int areaStyleIdx = are.CameraStyle;
     std::shared_ptr<CameraStyle> areaStyle(_services.game.cameraStyles.get(areaStyleIdx));
@@ -156,34 +156,34 @@ void Area::loadCameraStyle(const schema::ARE &are) {
     }
 }
 
-void Area::loadAmbientColor(const schema::ARE &are) {
+void Area::loadAmbientColor(const resource::generated::ARE &are) {
     _ambientColor = are.DynAmbientColor > 0 ? Gff::colorFromUint32(are.DynAmbientColor) : g_defaultAmbientColor;
 
     auto &sceneGraph = _services.scene.graphs.get(_sceneName);
     sceneGraph.setAmbientLightColor(_ambientColor);
 }
 
-void Area::loadScripts(const schema::ARE &are) {
+void Area::loadScripts(const resource::generated::ARE &are) {
     _onEnter = are.OnEnter;
     _onExit = are.OnExit;
     _onHeartbeat = are.OnHeartbeat;
     _onUserDefined = are.OnUserDefined;
 }
 
-void Area::loadMap(const schema::ARE &are) {
+void Area::loadMap(const resource::generated::ARE &are) {
     _game.map().load(_name, are.Map);
 }
 
-void Area::loadStealthXP(const schema::ARE &are) {
+void Area::loadStealthXP(const resource::generated::ARE &are) {
     _stealthXPEnabled = are.StealthXPEnabled;
     _stealthXPDecrement = are.StealthXPLoss; // TODO: loss = decrement?
     _maxStealthXP = are.StealthXPMax;
 }
 
-void Area::loadGrass(const schema::ARE &are) {
+void Area::loadGrass(const resource::generated::ARE &are) {
     std::string texName(boost::to_lower_copy(are.Grass_TexName));
     if (!texName.empty()) {
-        _grass.texture = _services.graphics.textures.get(texName, TextureUsage::Diffuse);
+        _grass.texture = _services.resource.textures.get(texName, TextureUsage::MainTex);
     }
     _grass.density = are.Grass_Density;
     _grass.quadSize = are.Grass_QuadSize;
@@ -195,7 +195,7 @@ void Area::loadGrass(const schema::ARE &are) {
     _grass.probabilities[3] = are.Grass_Prob_LR;
 }
 
-void Area::loadFog(const schema::ARE &are) {
+void Area::loadFog(const resource::generated::ARE &are) {
     _fogEnabled = are.SunFogOn;
     _fogNear = are.SunFogNear;
     _fogFar = are.SunFogFar;
@@ -210,7 +210,7 @@ void Area::loadFog(const schema::ARE &are) {
     sceneGraph.setFog(fogProperties);
 }
 
-void Area::loadGIT(const schema::GIT &git) {
+void Area::loadGIT(const resource::generated::GIT &git) {
     loadProperties(git);
     loadCreatures(git);
     loadDoors(git);
@@ -222,15 +222,15 @@ void Area::loadGIT(const schema::GIT &git) {
     loadEncounters(git);
 }
 
-void Area::loadProperties(const schema::GIT &git) {
+void Area::loadProperties(const resource::generated::GIT &git) {
     int musicIdx = git.AreaProperties.MusicDay;
     if (musicIdx) {
-        std::shared_ptr<TwoDa> musicTable(_services.resource.twoDas.get("ambientmusic"));
+        std::shared_ptr<TwoDA> musicTable(_services.resource.twoDas.get("ambientmusic"));
         _music = musicTable->getString(musicIdx, "resource");
     }
 }
 
-void Area::loadCreatures(const schema::GIT &git) {
+void Area::loadCreatures(const resource::generated::GIT &git) {
     for (auto &creatureStruct : git.Creature_List) {
         std::shared_ptr<Creature> creature = _game.newCreature(_sceneName);
         creature->loadFromGIT(creatureStruct);
@@ -239,7 +239,7 @@ void Area::loadCreatures(const schema::GIT &git) {
     }
 }
 
-void Area::loadDoors(const schema::GIT &git) {
+void Area::loadDoors(const resource::generated::GIT &git) {
     for (auto &doorStruct : git.Door_List) {
         std::shared_ptr<Door> door = _game.newDoor(_sceneName);
         door->loadFromGIT(doorStruct);
@@ -247,7 +247,7 @@ void Area::loadDoors(const schema::GIT &git) {
     }
 }
 
-void Area::loadPlaceables(const schema::GIT &git) {
+void Area::loadPlaceables(const resource::generated::GIT &git) {
     for (auto &placeableStruct : git.Placeable_List) {
         std::shared_ptr<Placeable> placeable = _game.newPlaceable(_sceneName);
         placeable->loadFromGIT(placeableStruct);
@@ -255,7 +255,7 @@ void Area::loadPlaceables(const schema::GIT &git) {
     }
 }
 
-void Area::loadWaypoints(const schema::GIT &git) {
+void Area::loadWaypoints(const resource::generated::GIT &git) {
     for (auto &waypointStruct : git.WaypointList) {
         std::shared_ptr<Waypoint> waypoint = _game.newWaypoint(_sceneName);
         waypoint->loadFromGIT(waypointStruct);
@@ -263,7 +263,7 @@ void Area::loadWaypoints(const schema::GIT &git) {
     }
 }
 
-void Area::loadTriggers(const schema::GIT &git) {
+void Area::loadTriggers(const resource::generated::GIT &git) {
     for (auto &gffs : git.TriggerList) {
         std::shared_ptr<Trigger> trigger = _game.newTrigger(_sceneName);
         trigger->loadFromGIT(gffs);
@@ -271,7 +271,7 @@ void Area::loadTriggers(const schema::GIT &git) {
     }
 }
 
-void Area::loadSounds(const schema::GIT &git) {
+void Area::loadSounds(const resource::generated::GIT &git) {
     for (auto &soundStruct : git.SoundList) {
         std::shared_ptr<Sound> sound = _game.newSound(_sceneName);
         sound->loadFromGIT(soundStruct);
@@ -279,7 +279,7 @@ void Area::loadSounds(const schema::GIT &git) {
     }
 }
 
-void Area::loadCameras(const schema::GIT &git) {
+void Area::loadCameras(const resource::generated::GIT &git) {
     for (auto &cameraStruct : git.CameraList) {
         std::shared_ptr<StaticCamera> camera = _game.newStaticCamera(_cameraAspect, _sceneName);
         camera->loadFromGIT(cameraStruct);
@@ -287,7 +287,7 @@ void Area::loadCameras(const schema::GIT &git) {
     }
 }
 
-void Area::loadEncounters(const schema::GIT &git) {
+void Area::loadEncounters(const resource::generated::GIT &git) {
     for (auto &encounterStruct : git.Encounter_List) {
         std::shared_ptr<Encounter> encounter = _game.newEncounter(_sceneName);
         encounter->loadFromGIT(encounterStruct);
@@ -295,7 +295,7 @@ void Area::loadEncounters(const schema::GIT &git) {
     }
 }
 
-void Area::loadStores(const schema::GIT &git) {
+void Area::loadStores(const resource::generated::GIT &git) {
     for (auto &storeStruct : git.StoreList) {
         std::shared_ptr<Store> store = _game.newStore(_sceneName);
         add(store);
@@ -303,13 +303,13 @@ void Area::loadStores(const schema::GIT &git) {
 }
 
 void Area::loadLYT() {
-    auto layout = _services.game.layouts.get(_name);
+    auto layout = _services.resource.layouts.get(_name);
     if (!layout) {
         throw ResourceNotFoundException("Area LYT not found: " + _name);
     }
     auto &sceneGraph = _services.scene.graphs.get(_sceneName);
     for (auto &lytRoom : layout->rooms) {
-        auto model = _services.graphics.models.get(lytRoom.name);
+        auto model = _services.resource.models.get(lytRoom.name);
         if (!model) {
             continue;
         }
@@ -318,16 +318,35 @@ void Area::loadLYT() {
         glm::vec3 position(lytRoom.position.x, lytRoom.position.y, lytRoom.position.z);
         std::shared_ptr<ModelSceneNode> modelSceneNode(sceneGraph.newModel(*model, ModelUsage::Room));
         modelSceneNode->setLocalTransform(glm::translate(glm::mat4(1.0f), position));
+
+        // Mark room objects as static when not below "{modelName}a" model node
+        std::stack<std::reference_wrapper<ModelNode>> modelNodes;
+        modelNodes.push(*model->rootNode());
+        while (!modelNodes.empty()) {
+            auto &modelNode = modelNodes.top().get();
+            modelNodes.pop();
+            if (modelNode.name() == model->name() + "a") {
+                continue;
+            }
+            auto sceneNode = modelSceneNode->getNodeByName(modelNode.name());
+            if (sceneNode) {
+                sceneNode->setStatic(true);
+            }
+            for (auto &child : modelNode.children()) {
+                modelNodes.push(*child);
+            }
+        }
+
         for (auto &anim : model->getAnimationNames()) {
             if (boost::starts_with(anim, "animloop")) {
-                modelSceneNode->playAnimation(anim, AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
+                modelSceneNode->playAnimation(anim, nullptr, AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
             }
         }
         sceneGraph.addRoot(modelSceneNode);
 
         // Walkmesh
         std::shared_ptr<WalkmeshSceneNode> walkmeshSceneNode;
-        auto walkmesh = _services.graphics.walkmeshes.get(lytRoom.name, ResourceType::Wok);
+        auto walkmesh = _services.resource.walkmeshes.get(lytRoom.name, ResType::Wok);
         if (walkmesh) {
             walkmeshSceneNode = sceneGraph.newWalkmesh(*walkmesh);
             sceneGraph.addRoot(walkmeshSceneNode);
@@ -357,7 +376,7 @@ void Area::loadLYT() {
 }
 
 void Area::loadVIS() {
-    auto visibility = _services.game.visibilities.get(_name);
+    auto visibility = _services.resource.visibilities.get(_name);
     if (!visibility) {
         return;
     }
@@ -374,7 +393,7 @@ Visibility Area::fixVisibility(const Visibility &visibility) {
 }
 
 void Area::loadPTH() {
-    std::shared_ptr<Path> path(_services.game.paths.get(_name));
+    std::shared_ptr<Path> path(_services.resource.paths.get(_name));
     if (!path) {
         return;
     }
@@ -386,7 +405,7 @@ void Area::loadPTH() {
         const Path::Point &point = path->points[i];
         Collision collision;
         if (!sceneGraph.testElevation(glm::vec2(point.x, point.y), collision)) {
-            warn(boost::format("Point %d elevation not found") % i);
+            warn(str(boost::format("Point %d elevation not found") % i));
             continue;
         }
         pointZ.insert(std::make_pair(static_cast<int>(i), collision.intersection.z));
@@ -605,16 +624,16 @@ void Area::reloadParty() {
     loadParty(player->position(), player->getFacing());
 }
 
-bool Area::handle(const SDL_Event &event) {
+bool Area::handle(const input::Event &event) {
     switch (event.type) {
-    case SDL_KEYDOWN:
+    case input::EventType::KeyDown:
         return handleKeyDown(event.key);
     default:
         return false;
     }
 }
 
-bool Area::handleKeyDown(const SDL_KeyboardEvent &event) {
+bool Area::handleKeyDown(const input::KeyEvent &event) {
     return false;
 }
 
@@ -833,7 +852,7 @@ void Area::update3rdPersonCameraTarget() {
     }
     auto cameraHook = model->getNodeByName("camerahook");
     if (cameraHook) {
-        _thirdPersonCamera->setTargetPosition(cameraHook->getOrigin());
+        _thirdPersonCamera->setTargetPosition(cameraHook->origin());
     } else {
         _thirdPersonCamera->setTargetPosition(model->getWorldCenterOfAABB());
     }
@@ -853,7 +872,7 @@ void Area::checkTriggersIntersection(const std::shared_ptr<Object> &triggerrer) 
         if (trigger->isTenant(triggerrer) || !trigger->isIn(position2d)) {
             continue;
         }
-        debug(boost::format("Trigger '%s' triggerred by '%s'") % trigger->tag() % triggerrer->tag());
+        debug(str(boost::format("Trigger '%s' triggerred by '%s'") % trigger->tag() % triggerrer->tag()));
         trigger->addTenant(triggerrer);
 
         if (!trigger->linkedToModule().empty()) {
@@ -987,7 +1006,7 @@ void Area::updateObjectSelection() {
     if (!camera) {
         return;
     }
-    auto cameraPos = camera->sceneNode()->getOrigin();
+    auto cameraPos = camera->sceneNode()->origin();
 
     if (_hilightedObject) {
         if (!_hilightedObject->isSelectable()) {
@@ -1033,7 +1052,7 @@ std::shared_ptr<Object> Area::getNearestObject(const glm::vec3 &origin, int nth,
 
     int candidateCount = static_cast<int>(candidates.size());
     if (nth >= candidateCount) {
-        debug(boost::format("getNearestObject: nth is out of bounds: %d/%d") % nth % candidateCount);
+        debug(str(boost::format("getNearestObject: nth is out of bounds: %d/%d") % nth % candidateCount));
         return nullptr;
     }
 
@@ -1187,20 +1206,20 @@ void Area::doUpdatePerception() {
             // Hearing
             bool wasHeard = creature->perception().heard.count(other) > 0;
             if (!wasHeard && heard) {
-                debug(boost::format("%s heard by %s") % other->tag() % creature->tag(), LogChannel::Perception);
+                debug(str(boost::format("%s heard by %s") % other->tag() % creature->tag()), LogChannel::Perception);
                 creature->onObjectHeard(other);
             } else if (wasHeard && !heard) {
-                debug(boost::format("%s inaudible to %s") % other->tag() % creature->tag(), LogChannel::Perception);
+                debug(str(boost::format("%s inaudible to %s") % other->tag() % creature->tag()), LogChannel::Perception);
                 creature->onObjectInaudible(other);
             }
 
             // Sight
             bool wasSeen = creature->perception().seen.count(other) > 0;
             if (!wasSeen && seen) {
-                debug(boost::format("%s seen by %s") % other->tag() % creature->tag(), LogChannel::Perception);
+                debug(str(boost::format("%s seen by %s") % other->tag() % creature->tag()), LogChannel::Perception);
                 creature->onObjectSeen(other);
             } else if (wasSeen && !seen) {
-                debug(boost::format("%s vanished from %s") % other->tag() % creature->tag(), LogChannel::Perception);
+                debug(str(boost::format("%s vanished from %s") % other->tag() % creature->tag()), LogChannel::Perception);
                 creature->onObjectVanished(other);
             }
         }

@@ -18,13 +18,12 @@
 #include "reone/movie/movie.h"
 
 #include "reone/audio/di/services.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/textureutil.h"
 #include "reone/graphics/uniforms.h"
 
@@ -42,11 +41,15 @@ void Movie::init() {
     if (!_texture && _videoStream) {
         _width = _videoStream->width();
         _height = _videoStream->height();
-        _texture = std::make_shared<Texture>("video", getTextureProperties(TextureUsage::Movie));
-        _texture->clear(1, 1, PixelFormat::RGB8, 1);
+        _texture = std::make_shared<Texture>(
+            "video",
+            TextureType::TwoDim,
+            getTextureProperties(TextureUsage::Movie));
+        _texture->clear(1, 1, PixelFormat::RGB8);
+        _texture->init();
     }
     if (!_audioSource && _audioStream) {
-        _audioSource = _audioSvc.player.play(_audioStream, AudioType::Movie);
+        _audioSource = _audioPlayer.play(_audioStream, AudioType::Movie);
     }
     _inited = true;
 }
@@ -71,9 +74,6 @@ void Movie::deinit() {
 }
 
 void Movie::update(float dt) {
-    if (!_inited) {
-        init();
-    }
     if (!_videoStream || _finished) {
         return;
     }
@@ -81,35 +81,27 @@ void Movie::update(float dt) {
     _videoStream->seek(_time);
     if (_videoStream->hasEnded()) {
         _finished = true;
-        return;
-    }
-    if (_audioSource) {
-        _audioSource->update();
     }
 }
 
 void Movie::render() {
-    if (!_inited) {
-        init();
-    }
     if (!_videoStream) {
         return;
     }
     auto &frame = _videoStream->frame();
     if (frame.pixels) {
-        _graphicsSvc.textures.bind(*_texture);
+        _graphicsSvc.context.bindTexture(*_texture);
         _texture->setPixels(_width, _height, PixelFormat::RGB8, Texture::Layer {frame.pixels}, true);
     }
-    _graphicsSvc.uniforms.setGeneral([](auto &general) {
-        general.resetGlobals();
-        general.resetLocals();
-        general.uv = glm::mat3x4(
+    _graphicsSvc.uniforms.setLocals([](auto &locals) {
+        locals.reset();
+        locals.uv = glm::mat3x4(
             glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
     });
-    _graphicsSvc.shaders.use(ShaderProgramId::GUI);
-    _graphicsSvc.meshes.quadNDC().draw();
+    _graphicsSvc.context.useProgram(_graphicsSvc.shaderRegistry.get(ShaderProgramId::ndcTexture));
+    _graphicsSvc.meshRegistry.get(MeshName::quadNDC).draw(_graphicsSvc.statistic);
 }
 
 } // namespace movie

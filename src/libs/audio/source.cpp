@@ -17,7 +17,7 @@
 
 #include "reone/audio/source.h"
 
-#include "reone/audio/buffer.h"
+#include "reone/audio/clip.h"
 #include "reone/system/threadutil.h"
 
 namespace reone {
@@ -41,7 +41,7 @@ static int getALFormat(AudioFormat format) {
     }
 }
 
-static void fillBuffer(const AudioBuffer::Frame &frame, uint32_t buffer) {
+static void fillBuffer(const AudioClip::Frame &frame, uint32_t buffer) {
     alBufferData(
         buffer,
         getALFormat(frame.format),
@@ -66,8 +66,8 @@ void AudioSource::init() {
     alGenSources(1, &_source);
     alSourcef(_source, AL_GAIN, _gain);
 
-    if (_positional) {
-        alSource3f(_source, AL_POSITION, _position.x, _position.y, _position.z);
+    if (_position) {
+        alSource3f(_source, AL_POSITION, _position->x, _position->y, _position->z);
     } else {
         alSourcei(_source, AL_SOURCE_RELATIVE, AL_TRUE);
     }
@@ -104,7 +104,7 @@ void AudioSource::deinit() {
     _inited = false;
 }
 
-void AudioSource::update() {
+void AudioSource::render() {
     if (!_source) {
         return;
     }
@@ -146,10 +146,11 @@ void AudioSource::play() {
 }
 
 void AudioSource::stop() {
-    if (_source) {
-        alSourceStop(_source);
-    }
     _playing = false;
+    if (!_source) {
+        return;
+    }
+    alSourceStop(_source);
 }
 
 float AudioSource::duration() const {
@@ -160,7 +161,7 @@ void AudioSource::setPosition(glm::vec3 position) {
     if (_position == position) {
         return;
     }
-    if (_source && _positional) {
+    if (_source) {
         alSource3f(_source, AL_POSITION, position.x, position.y, position.z);
     }
     _position = std::move(position);

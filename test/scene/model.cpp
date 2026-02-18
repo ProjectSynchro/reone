@@ -27,15 +27,22 @@
 
 #include "../fixtures/audio.h"
 #include "../fixtures/graphics.h"
+#include "../fixtures/resource.h"
+#include "../fixtures/scene.h"
 
 using namespace reone;
 using namespace reone::audio;
 using namespace reone::graphics;
+using namespace reone::resource;
 using namespace reone::scene;
 
-TEST(model_scene_node, should_build_from_model) {
+using testing::_;
+using testing::ReturnRef;
+
+TEST(ModelSceneNode, should_build_from_model) {
     // given
     auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
 
     auto graphicsModule = TestGraphicsModule();
     graphicsModule.init();
@@ -43,7 +50,10 @@ TEST(model_scene_node, should_build_from_model) {
     auto audioModule = TestAudioModule();
     audioModule.init();
 
-    auto scene = std::make_unique<SceneGraph>("test", graphicsOpt, graphicsModule.services(), audioModule.services());
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
 
     auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
 
@@ -62,13 +72,14 @@ TEST(model_scene_node, should_build_from_model) {
     emitterNode->setEmitter(emitter);
     rootNode->addChild(emitterNode);
 
-    auto model = Model("some_model", 0, rootNode, std::vector<std::shared_ptr<Animation>>(), nullptr, 1.0f);
+    auto model = Model("some_model", 0, rootNode, std::vector<std::shared_ptr<Animation>>(), "", 1.0f);
     auto modelSceneNode = std::make_shared<ModelSceneNode>(
         model,
         ModelUsage::Creature,
         *scene,
         graphicsModule.services(),
-        audioModule.services());
+        audioModule.services(),
+        resourceModule.services());
 
     // when
     modelSceneNode->init();
@@ -95,9 +106,10 @@ TEST(model_scene_node, should_build_from_model) {
     EXPECT_EQ(static_cast<int>(SceneNodeType::Emitter), static_cast<int>(emitterSceneNode->type()));
 }
 
-TEST(model_scene_node, should_play_single_fire_forget_animation) {
+TEST(ModelSceneNode, should_play_single_fire_forget_animation) {
     // given
     auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
 
     auto graphicsModule = TestGraphicsModule();
     graphicsModule.init();
@@ -105,29 +117,33 @@ TEST(model_scene_node, should_play_single_fire_forget_animation) {
     auto audioModule = TestAudioModule();
     audioModule.init();
 
-    auto scene = std::make_unique<SceneGraph>("test", graphicsOpt, graphicsModule.services(), audioModule.services());
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
 
     auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
 
     auto animRootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
-    animRootNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    animRootNode->position().addFrame(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
+    animRootNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    animRootNode->vectorTracks()[ControllerTypes::position].add(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
 
     auto animations = std::vector<std::shared_ptr<Animation>> {
         std::make_shared<Animation>("some_animation", 1.0f, 0.5f, "root_node", animRootNode, std::vector<Animation::Event>())};
 
-    auto model = Model("some_model", 0, rootNode, animations, nullptr, 1.0f);
+    auto model = Model("some_model", 0, rootNode, animations, "", 1.0f);
 
     auto modelSceneNode = std::make_shared<ModelSceneNode>(
         model,
         ModelUsage::Creature,
         *scene,
         graphicsModule.services(),
-        audioModule.services());
+        audioModule.services(),
+        resourceModule.services());
 
     // when
     modelSceneNode->init();
-    modelSceneNode->playAnimation("some_animation", AnimationProperties::fromFlags(AnimationFlags::fireForget));
+    modelSceneNode->playAnimation("some_animation", nullptr, AnimationProperties::fromFlags(AnimationFlags::fireForget));
     modelSceneNode->update(1.25f);
 
     // then
@@ -143,9 +159,10 @@ TEST(model_scene_node, should_play_single_fire_forget_animation) {
     EXPECT_NEAR(3.0f, rootPosition.z, 1e-5);
 }
 
-TEST(model_scene_node, should_play_single_looping_animation) {
+TEST(ModelSceneNode, should_play_single_looping_animation) {
     // given
     auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
 
     auto graphicsModule = TestGraphicsModule();
     graphicsModule.init();
@@ -153,28 +170,32 @@ TEST(model_scene_node, should_play_single_looping_animation) {
     auto audioModule = TestAudioModule();
     audioModule.init();
 
-    auto scene = std::make_unique<SceneGraph>("test", graphicsOpt, graphicsModule.services(), audioModule.services());
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
 
     auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
 
     auto animRootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
-    animRootNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    animRootNode->position().addFrame(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
+    animRootNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    animRootNode->vectorTracks()[ControllerTypes::position].add(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
 
     auto animations = std::vector<std::shared_ptr<Animation>> {
         std::make_shared<Animation>("some_animation", 1.0f, 0.5f, "root_node", animRootNode, std::vector<Animation::Event>())};
 
-    auto model = Model("some_model", 0, rootNode, animations, nullptr, 1.0f);
+    auto model = Model("some_model", 0, rootNode, animations, "", 1.0f);
     auto modelSceneNode = std::make_shared<ModelSceneNode>(
         model,
         ModelUsage::Creature,
         *scene,
         graphicsModule.services(),
-        audioModule.services());
+        audioModule.services(),
+        resourceModule.services());
 
     // when
     modelSceneNode->init();
-    modelSceneNode->playAnimation("some_animation", AnimationProperties::fromFlags(AnimationFlags::loop));
+    modelSceneNode->playAnimation("some_animation", nullptr, AnimationProperties::fromFlags(AnimationFlags::loop));
     modelSceneNode->update(1.25f);
 
     // then
@@ -190,9 +211,10 @@ TEST(model_scene_node, should_play_single_looping_animation) {
     EXPECT_NEAR(3.0f, rootPosition.z, 1e-5);
 }
 
-TEST(model_scene_node, should_play_two_overlayed_animations) {
+TEST(ModelSceneNode, should_play_two_overlayed_animations) {
     // given
     auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
 
     auto graphicsModule = TestGraphicsModule();
     graphicsModule.init();
@@ -200,38 +222,42 @@ TEST(model_scene_node, should_play_two_overlayed_animations) {
     auto audioModule = TestAudioModule();
     audioModule.init();
 
-    auto scene = std::make_unique<SceneGraph>("test", graphicsOpt, graphicsModule.services(), audioModule.services());
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
 
     auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
     auto dummyNode = std::make_shared<ModelNode>(1, "dummy_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, rootNode.get());
     rootNode->addChild(dummyNode);
 
     auto anim1RootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
-    anim1RootNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    anim1RootNode->position().addFrame(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
+    anim1RootNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    anim1RootNode->vectorTracks()[ControllerTypes::position].add(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
 
     auto anim2RootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
     auto anim2DummyNode = std::make_shared<ModelNode>(1, "dummy_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, anim2RootNode.get());
-    anim2DummyNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    anim2DummyNode->position().addFrame(2.0f, glm::vec3(4.0f, 5.0f, 6.0f));
+    anim2DummyNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    anim2DummyNode->vectorTracks()[ControllerTypes::position].add(2.0f, glm::vec3(4.0f, 5.0f, 6.0f));
     anim2RootNode->addChild(anim2DummyNode);
 
     auto animations = std::vector<std::shared_ptr<Animation>> {
         std::make_shared<Animation>("animation1", 1.0f, 0.5f, "root_node", anim1RootNode, std::vector<Animation::Event>()),
         std::make_shared<Animation>("animation2", 2.0f, 0.5f, "root_node", anim2RootNode, std::vector<Animation::Event>())};
 
-    auto model = Model("some_model", 0, rootNode, animations, nullptr, 1.0f);
+    auto model = Model("some_model", 0, rootNode, animations, "", 1.0f);
     auto modelSceneNode = std::make_shared<ModelSceneNode>(
         model,
         ModelUsage::Creature,
         *scene,
         graphicsModule.services(),
-        audioModule.services());
+        audioModule.services(),
+        resourceModule.services());
 
     // when
     modelSceneNode->init();
-    modelSceneNode->playAnimation("animation1", AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
-    modelSceneNode->playAnimation("animation2", AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
+    modelSceneNode->playAnimation("animation1", nullptr, AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
+    modelSceneNode->playAnimation("animation2", nullptr, AnimationProperties::fromFlags(AnimationFlags::loopOverlay));
     modelSceneNode->update(1.25f);
 
     // then
@@ -255,9 +281,10 @@ TEST(model_scene_node, should_play_two_overlayed_animations) {
     EXPECT_NEAR(3.75f, dummyPosition.z, 1e-5);
 }
 
-TEST(model_scene_node, hould_transition_between_two_animations) {
+TEST(ModelSceneNode, hould_transition_between_two_animations) {
     // given
     auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
 
     auto graphicsModule = TestGraphicsModule();
     graphicsModule.init();
@@ -265,34 +292,38 @@ TEST(model_scene_node, hould_transition_between_two_animations) {
     auto audioModule = TestAudioModule();
     audioModule.init();
 
-    auto scene = std::make_unique<SceneGraph>("test", graphicsOpt, graphicsModule.services(), audioModule.services());
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
 
     auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
 
     auto anim1RootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
-    anim1RootNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    anim1RootNode->position().addFrame(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
+    anim1RootNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    anim1RootNode->vectorTracks()[ControllerTypes::position].add(1.0f, glm::vec3(1.0f, 2.0f, 3.0f));
 
     auto anim2RootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), false, nullptr);
-    anim2RootNode->position().addFrame(0.0f, glm::vec3(0.0f));
-    anim2RootNode->position().addFrame(2.0f, glm::vec3(4.0f, 5.0f, 6.0f));
+    anim2RootNode->vectorTracks()[ControllerTypes::position].add(0.0f, glm::vec3(0.0f));
+    anim2RootNode->vectorTracks()[ControllerTypes::position].add(2.0f, glm::vec3(4.0f, 5.0f, 6.0f));
 
     auto animations = std::vector<std::shared_ptr<Animation>> {
         std::make_shared<Animation>("animation1", 1.0f, 0.5f, "root_node", anim1RootNode, std::vector<Animation::Event>()),
         std::make_shared<Animation>("animation2", 2.0f, 0.5f, "root_node", anim2RootNode, std::vector<Animation::Event>())};
 
-    auto model = Model("some_model", 0, rootNode, animations, nullptr, 1.0f);
+    auto model = Model("some_model", 0, rootNode, animations, "", 1.0f);
     auto modelSceneNode = std::make_shared<ModelSceneNode>(
         model,
         ModelUsage::Creature,
         *scene,
         graphicsModule.services(),
-        audioModule.services());
+        audioModule.services(),
+        resourceModule.services());
 
     // when
     modelSceneNode->init();
-    modelSceneNode->playAnimation("animation1", AnimationProperties::fromFlags(AnimationFlags::loopBlend));
-    modelSceneNode->playAnimation("animation2", AnimationProperties::fromFlags(AnimationFlags::loopBlend));
+    modelSceneNode->playAnimation("animation1", nullptr, AnimationProperties::fromFlags(AnimationFlags::loopBlend));
+    modelSceneNode->playAnimation("animation2", nullptr, AnimationProperties::fromFlags(AnimationFlags::loopBlend));
     modelSceneNode->update(1.25f);
 
     // then

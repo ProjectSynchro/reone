@@ -21,7 +21,7 @@
 #include "reone/game/game.h"
 #include "reone/game/script/runner.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/gffs.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
@@ -37,7 +37,7 @@ namespace reone {
 
 namespace game {
 
-void Trigger::loadFromGIT(const schema::GIT_TriggerList &git) {
+void Trigger::loadFromGIT(const resource::generated::GIT_TriggerList &git) {
     std::string templateResRef(boost::to_lower_copy(git.TemplateResRef));
     loadFromBlueprint(templateResRef);
 
@@ -55,7 +55,7 @@ void Trigger::loadFromGIT(const schema::GIT_TriggerList &git) {
     _sceneNode->setLocalTransform(glm::translate(_position));
 }
 
-void Trigger::loadTransformFromGIT(const schema::GIT_TriggerList &git) {
+void Trigger::loadTransformFromGIT(const resource::generated::GIT_TriggerList &git) {
     _position.x = git.XPosition;
     _position.y = git.YPosition;
     _position.z = git.ZPosition;
@@ -65,7 +65,7 @@ void Trigger::loadTransformFromGIT(const schema::GIT_TriggerList &git) {
     updateTransform();
 }
 
-void Trigger::loadGeometryFromGIT(const schema::GIT_TriggerList &git) {
+void Trigger::loadGeometryFromGIT(const resource::generated::GIT_TriggerList &git) {
     for (auto &pointStruct : git.Geometry) {
         float x = pointStruct.PointX;
         float y = pointStruct.PointY;
@@ -75,9 +75,9 @@ void Trigger::loadGeometryFromGIT(const schema::GIT_TriggerList &git) {
 }
 
 void Trigger::loadFromBlueprint(const std::string &resRef) {
-    std::shared_ptr<Gff> utt(_services.resource.gffs.get(resRef, ResourceType::Utt));
+    std::shared_ptr<Gff> utt(_services.resource.gffs.get(resRef, ResType::Utt));
     if (utt) {
-        auto uttParsed = schema::parseUTT(*utt);
+        auto uttParsed = resource::generated::parseUTT(*utt);
         loadUTT(uttParsed);
     }
 }
@@ -113,7 +113,7 @@ bool Trigger::isTenant(const std::shared_ptr<Object> &object) const {
     return maybeTenant != _tenants.end();
 }
 
-void Trigger::loadUTT(const schema::UTT &utt) {
+void Trigger::loadUTT(const resource::generated::UTT &utt) {
     _tag = boost::to_lower_copy(utt.Tag);
     _blueprintResRef = boost::to_lower_copy(utt.TemplateResRef);
     _name = _services.resource.strings.getText(utt.LocalizedName.first);

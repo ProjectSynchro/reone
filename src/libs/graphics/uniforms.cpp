@@ -17,6 +17,8 @@
 
 #include "reone/graphics/uniforms.h"
 
+#include "reone/graphics/context.h"
+
 namespace reone {
 
 namespace graphics {
@@ -26,25 +28,35 @@ void Uniforms::init() {
         return;
     }
 
-    static GeneralUniforms defaultsGeneral;
-    static TextUniforms defaultsText;
-    static LightingUniforms defaultsLighting;
-    static SkeletalUniforms defaultsSkeletal;
-    static ParticlesUniforms defaultsParticles;
-    static GrassUniforms defaultsGrass;
-    static SSAOUniforms defaultsSSAO;
-    static WalkmeshUniforms defaultsWalkmesh;
-    static PointsUniforms defaultsPoints;
+    static GlobalUniforms defaultGlobals;
+    static LocalUniforms defaultLocals;
+    static BoneUniforms defaultBones;
+    static DanglyUniforms defaultDangly;
+    static ParticleUniforms defaultParticles;
+    static GrassUniforms defaultGrass;
+    static WalkmeshUniforms defaultWalkmesh;
+    static TextUniforms defaultText;
+    static ScreenEffectUniforms defaultScreenEffect;
 
-    _ubGeneral = initBuffer(&defaultsGeneral, sizeof(GeneralUniforms));
-    _ubText = initBuffer(&defaultsText, sizeof(TextUniforms));
-    _ubLighting = initBuffer(&defaultsLighting, sizeof(LightingUniforms));
-    _ubSkeletal = initBuffer(&defaultsSkeletal, sizeof(SkeletalUniforms));
-    _ubParticles = initBuffer(&defaultsParticles, sizeof(ParticlesUniforms));
-    _ubGrass = initBuffer(&defaultsGrass, sizeof(GrassUniforms));
-    _ubSSAO = initBuffer(&defaultsSSAO, sizeof(SSAOUniforms));
-    _ubWalkmesh = initBuffer(&defaultsWalkmesh, sizeof(WalkmeshUniforms));
-    _ubPoints = initBuffer(&defaultsPoints, sizeof(PointsUniforms));
+    _ubGlobals = initBuffer(&defaultGlobals, sizeof(GlobalUniforms));
+    _ubLocals = initBuffer(&defaultLocals, sizeof(LocalUniforms));
+    _ubBones = initBuffer(&defaultBones, sizeof(BoneUniforms));
+    _ubDangly = initBuffer(&defaultDangly, sizeof(DanglyUniforms));
+    _ubParticles = initBuffer(&defaultParticles, sizeof(ParticleUniforms));
+    _ubGrass = initBuffer(&defaultGrass, sizeof(GrassUniforms));
+    _ubWalkmesh = initBuffer(&defaultWalkmesh, sizeof(WalkmeshUniforms));
+    _ubText = initBuffer(&defaultText, sizeof(TextUniforms));
+    _ubScreenEffect = initBuffer(&defaultScreenEffect, sizeof(ScreenEffectUniforms));
+
+    _context.bindUniformBuffer(*_ubGlobals, UniformBlockBindingPoints::globals);
+    _context.bindUniformBuffer(*_ubLocals, UniformBlockBindingPoints::locals);
+    _context.bindUniformBuffer(*_ubBones, UniformBlockBindingPoints::bones);
+    _context.bindUniformBuffer(*_ubDangly, UniformBlockBindingPoints::dangly);
+    _context.bindUniformBuffer(*_ubParticles, UniformBlockBindingPoints::particles);
+    _context.bindUniformBuffer(*_ubGrass, UniformBlockBindingPoints::grass);
+    _context.bindUniformBuffer(*_ubWalkmesh, UniformBlockBindingPoints::walkmesh);
+    _context.bindUniformBuffer(*_ubText, UniformBlockBindingPoints::text);
+    _context.bindUniformBuffer(*_ubScreenEffect, UniformBlockBindingPoints::screenEffect);
 
     _inited = true;
 }
@@ -54,74 +66,78 @@ void Uniforms::deinit() {
         return;
     }
 
-    _ubGeneral.reset();
-    _ubText.reset();
-    _ubLighting.reset();
-    _ubSkeletal.reset();
+    _ubGlobals.reset();
+    _ubLocals.reset();
+    _ubBones.reset();
+    _ubDangly.reset();
     _ubParticles.reset();
     _ubGrass.reset();
-    _ubSSAO.reset();
     _ubWalkmesh.reset();
-    _ubPoints.reset();
+    _ubText.reset();
+    _ubScreenEffect.reset();
 
     _inited = false;
 }
 
-void Uniforms::setGeneral(const std::function<void(GeneralUniforms &)> &block) {
-    block(_general);
-    refreshBuffer(*_ubGeneral, UniformBlockBindingPoints::general, &_general, sizeof(GeneralUniforms));
+void Uniforms::setGlobals(const std::function<void(GlobalUniforms &)> &block) {
+    block(_globals);
+    _context.bindUniformBuffer(*_ubGlobals, UniformBlockBindingPoints::globals);
+    _ubGlobals->setData(&_globals, sizeof(GlobalUniforms));
 }
 
-void Uniforms::setText(const std::function<void(TextUniforms &)> &block) {
-    block(_text);
-    refreshBuffer(*_ubText, UniformBlockBindingPoints::text, &_text, sizeof(TextUniforms));
+void Uniforms::setLocals(const std::function<void(LocalUniforms &)> &block) {
+    block(_locals);
+    _context.bindUniformBuffer(*_ubLocals, UniformBlockBindingPoints::locals);
+    _ubLocals->setData(&_locals, sizeof(LocalUniforms));
 }
 
-void Uniforms::setLighting(const std::function<void(LightingUniforms &)> &block) {
-    block(_lighting);
-    refreshBuffer(*_ubLighting, UniformBlockBindingPoints::lighting, &_lighting, sizeof(LightingUniforms));
+void Uniforms::setBones(const std::function<void(BoneUniforms &)> &block) {
+    block(_bones);
+    _context.bindUniformBuffer(*_ubBones, UniformBlockBindingPoints::bones);
+    _ubBones->setData(&_bones, sizeof(BoneUniforms));
 }
 
-void Uniforms::setSkeletal(const std::function<void(SkeletalUniforms &)> &block) {
-    block(_skeletal);
-    refreshBuffer(*_ubSkeletal, UniformBlockBindingPoints::skeletal, &_skeletal, sizeof(SkeletalUniforms));
+void Uniforms::setDangly(const std::function<void(DanglyUniforms &)> &block) {
+    block(_dangly);
+    _context.bindUniformBuffer(*_ubDangly, UniformBlockBindingPoints::dangly);
+    _ubDangly->setData(&_dangly, sizeof(DanglyUniforms));
 }
 
-void Uniforms::setParticles(const std::function<void(ParticlesUniforms &)> &block) {
+void Uniforms::setParticles(const std::function<void(ParticleUniforms &)> &block) {
     block(_particles);
-    refreshBuffer(*_ubParticles, UniformBlockBindingPoints::particles, &_particles, sizeof(ParticlesUniforms));
+    _context.bindUniformBuffer(*_ubParticles, UniformBlockBindingPoints::particles);
+    _ubParticles->setData(&_particles, sizeof(ParticleUniforms));
 }
 
 void Uniforms::setGrass(const std::function<void(GrassUniforms &)> &block) {
     block(_grass);
-    refreshBuffer(*_ubGrass, UniformBlockBindingPoints::grass, &_grass, sizeof(GrassUniforms));
-}
-
-void Uniforms::setSSAO(const std::function<void(SSAOUniforms &)> &block) {
-    block(_ssao);
-    refreshBuffer(*_ubSSAO, UniformBlockBindingPoints::ssao, &_ssao, sizeof(SSAOUniforms));
+    _context.bindUniformBuffer(*_ubGrass, UniformBlockBindingPoints::grass);
+    _ubGrass->setData(&_grass, sizeof(GrassUniforms));
 }
 
 void Uniforms::setWalkmesh(const std::function<void(WalkmeshUniforms &)> &block) {
     block(_walkmesh);
-    refreshBuffer(*_ubWalkmesh, UniformBlockBindingPoints::walkmesh, &_walkmesh, sizeof(WalkmeshUniforms));
+    _context.bindUniformBuffer(*_ubWalkmesh, UniformBlockBindingPoints::walkmesh);
+    _ubWalkmesh->setData(&_walkmesh, sizeof(WalkmeshUniforms));
 }
 
-void Uniforms::setPoints(const std::function<void(PointsUniforms &)> &block) {
-    block(_points);
-    refreshBuffer(*_ubPoints, UniformBlockBindingPoints::points, &_points, sizeof(PointsUniforms));
+void Uniforms::setText(const std::function<void(TextUniforms &)> &block) {
+    block(_text);
+    _context.bindUniformBuffer(*_ubText, UniformBlockBindingPoints::text);
+    _ubText->setData(&_text, sizeof(TextUniforms));
+}
+
+void Uniforms::setScreenEffect(const std::function<void(ScreenEffectUniforms &)> &block) {
+    block(_screenEffect);
+    _context.bindUniformBuffer(*_ubScreenEffect, UniformBlockBindingPoints::screenEffect);
+    _ubScreenEffect->setData(&_screenEffect, sizeof(ScreenEffectUniforms));
 }
 
 std::unique_ptr<UniformBuffer> Uniforms::initBuffer(const void *data, ptrdiff_t size) {
     auto buf = std::make_unique<UniformBuffer>();
-    buf->setData(data, size);
+    buf->setData(data, size, false);
     buf->init();
     return buf;
-}
-
-void Uniforms::refreshBuffer(UniformBuffer &buffer, int bindingPoint, const void *data, ptrdiff_t size) {
-    buffer.bind(bindingPoint);
-    buffer.setData(data, size, true);
 }
 
 } // namespace graphics

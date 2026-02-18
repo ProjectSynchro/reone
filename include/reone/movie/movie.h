@@ -33,7 +33,7 @@ struct GraphicsServices;
 
 namespace audio {
 
-struct AudioServices;
+class IAudioMixer;
 
 }
 
@@ -57,9 +57,9 @@ class Movie : public IMovie, boost::noncopyable {
 public:
     Movie(
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::IAudioMixer &audioPlayer) :
         _graphicsSvc(graphicsSvc),
-        _audioSvc(audioSvc) {
+        _audioPlayer(audioPlayer) {
     }
 
     void init();
@@ -73,11 +73,11 @@ public:
     bool isFinished() const override { return _finished; }
 
     void setVideoStream(std::shared_ptr<VideoStream> stream) { _videoStream = std::move(stream); }
-    void setAudioBuffer(std::shared_ptr<audio::AudioBuffer> stream) { _audioStream = std::move(stream); }
+    void setAudioClip(std::shared_ptr<audio::AudioClip> stream) { _audioStream = std::move(stream); }
 
 private:
     graphics::GraphicsServices &_graphicsSvc;
-    audio::AudioServices &_audioSvc;
+    audio::IAudioMixer &_audioPlayer;
 
     bool _inited {false};
 
@@ -88,7 +88,7 @@ private:
     bool _finished {false};
 
     std::shared_ptr<VideoStream> _videoStream;
-    std::shared_ptr<audio::AudioBuffer> _audioStream;
+    std::shared_ptr<audio::AudioClip> _audioStream;
 
     std::shared_ptr<graphics::Texture> _texture;
     std::shared_ptr<audio::AudioSource> _audioSource;

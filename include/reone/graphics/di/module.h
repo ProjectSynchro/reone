@@ -17,19 +17,13 @@
 
 #pragma once
 
-#include "reone/resource/di/module.h"
-
 #include "../context.h"
-#include "../fonts.h"
-#include "../lips.h"
-#include "../meshes.h"
-#include "../models.h"
-#include "../pipeline.h"
-#include "../shaders.h"
-#include "../textures.h"
+#include "../meshregistry.h"
+#include "../pbrtextures.h"
+#include "../shaderregistry.h"
+#include "../statistic.h"
+#include "../textureregistry.h"
 #include "../uniforms.h"
-#include "../walkmeshes.h"
-#include "../window.h"
 
 #include "services.h"
 
@@ -39,49 +33,37 @@ namespace graphics {
 
 class GraphicsModule : boost::noncopyable {
 public:
-    GraphicsModule(graphics::GraphicsOptions &options, resource::ResourceModule &resource) :
-        _options(options),
-        _resource(resource) {
+    GraphicsModule(GraphicsOptions &options) :
+        _options(options) {
     }
 
-    virtual ~GraphicsModule() { deinit(); }
+    ~GraphicsModule() { deinit(); }
 
     void init();
     void deinit();
 
-    graphics::Fonts &fonts() { return *_fonts; }
-    graphics::GraphicsContext &context() { return *_context; }
-    graphics::Lips &lips() { return *_lips; }
-    graphics::Meshes &meshes() { return *_meshes; }
-    graphics::Models &models() { return *_models; }
-    graphics::Pipeline &pipeline() { return *_pipeline; }
-    graphics::Shaders &shaders() { return *_shaders; }
-    graphics::Textures &textures() { return *_textures; }
-    graphics::Uniforms &uniforms() { return *_uniforms; }
-    graphics::Walkmeshes &walkmeshes() { return *_walkmeshes; }
-    graphics::IWindow &window() { return *_window; }
+    Context &context() { return *_context; }
+    MeshRegistry &meshRegistry() { return *_meshRegistry; }
+    PBRTextures &pbrTextures() { return *_pbrTextures; }
+    ShaderRegistry &shaderRegistry() { return *_shaderRegistry; }
+    Statistic &statistic() { return *_statistic; }
+    TextureRegistry &textureRegistry() { return *_textureRegistry; }
+    Uniforms &uniforms() { return *_uniforms; }
 
-    graphics::GraphicsServices &services() { return *_services; }
+    GraphicsServices &services() { return *_services; }
 
-protected:
-    graphics::GraphicsOptions &_options;
-    resource::ResourceModule &_resource;
+private:
+    GraphicsOptions &_options;
 
-    std::unique_ptr<graphics::Fonts> _fonts;
-    std::unique_ptr<graphics::GraphicsContext> _context;
-    std::unique_ptr<graphics::Lips> _lips;
-    std::unique_ptr<graphics::Meshes> _meshes;
-    std::unique_ptr<graphics::Models> _models;
-    std::unique_ptr<graphics::Pipeline> _pipeline;
-    std::unique_ptr<graphics::Shaders> _shaders;
-    std::unique_ptr<graphics::Textures> _textures;
-    std::unique_ptr<graphics::Uniforms> _uniforms;
-    std::unique_ptr<graphics::Walkmeshes> _walkmeshes;
-    std::unique_ptr<graphics::IWindow> _window;
+    std::unique_ptr<Context> _context;
+    std::unique_ptr<MeshRegistry> _meshRegistry;
+    std::unique_ptr<PBRTextures> _pbrTextures;
+    std::unique_ptr<ShaderRegistry> _shaderRegistry;
+    std::unique_ptr<Statistic> _statistic;
+    std::unique_ptr<TextureRegistry> _textureRegistry;
+    std::unique_ptr<Uniforms> _uniforms;
 
-    std::unique_ptr<graphics::GraphicsServices> _services;
-
-    virtual std::unique_ptr<graphics::IWindow> newWindow();
+    std::unique_ptr<GraphicsServices> _services;
 };
 
 } // namespace graphics

@@ -17,23 +17,41 @@
 
 #pragma once
 
+#include "logger.h"
 #include "types.h"
 
 namespace reone {
 
-void initLog(LogSeverity minSeverity = LogSeverity::Info,
-             std::set<LogChannel> channels = std::set<LogChannel> {LogChannel::Global},
-             std::string filename = "");
+inline void error(const char *message, LogChannel channel = LogChannel::Global) {
+    Logger::instance.append(message, channel, LogSeverity::Error);
+}
 
-void error(const std::string &s, LogChannel channel = LogChannel::Global);
-void error(const boost::format &s, LogChannel channel = LogChannel::Global);
-void warn(const std::string &s, LogChannel channel = LogChannel::Global);
-void warn(const boost::format &s, LogChannel channel = LogChannel::Global);
-void info(const std::string &s, LogChannel channel = LogChannel::Global);
-void info(const boost::format &s, LogChannel channel = LogChannel::Global);
-void debug(const std::string &s, LogChannel channel = LogChannel::Global);
-void debug(const boost::format &s, LogChannel channel = LogChannel::Global);
+inline void error(const std::string &message, LogChannel channel = LogChannel::Global) {
+    error(message.c_str(), channel);
+}
 
-bool isLogChannelEnabled(LogChannel channel);
+inline void warn(const char *message, LogChannel channel = LogChannel::Global) {
+    Logger::instance.append(message, channel, LogSeverity::Warn);
+}
+
+inline void warn(const std::string &message, LogChannel channel = LogChannel::Global) {
+    warn(message.c_str(), channel);
+}
+
+inline void info(const char *message, LogChannel channel = LogChannel::Global) {
+    Logger::instance.append(message, channel, LogSeverity::Info);
+}
+
+inline void info(const std::string &message, LogChannel channel = LogChannel::Global) {
+    info(message.c_str(), channel);
+}
+
+inline void debug(const char *message, LogChannel channel = LogChannel::Global) {
+    Logger::instance.append(message, channel, LogSeverity::Debug);
+}
+
+inline void debug(const std::string &message, LogChannel channel = LogChannel::Global) {
+    debug(message.c_str(), channel);
+}
 
 } // namespace reone

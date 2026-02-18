@@ -17,9 +17,9 @@
 
 #include "reone/game/d20/skills.h"
 
-#include "reone/graphics/textures.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/strings.h"
 
 using namespace reone::graphics;
@@ -30,7 +30,7 @@ namespace reone {
 namespace game {
 
 void Skills::init() {
-    std::shared_ptr<TwoDa> skills(_twoDas.get("skills"));
+    std::shared_ptr<TwoDA> skills(_twoDas.get("skills"));
     if (!skills) {
         return;
     }

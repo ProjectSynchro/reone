@@ -18,7 +18,7 @@
 #include "reone/game/camerastyles.h"
 
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
+#include "reone/resource/provider/2das.h"
 
 using namespace reone::resource;
 
@@ -27,7 +27,7 @@ namespace reone {
 namespace game {
 
 void CameraStyles::init() {
-    std::shared_ptr<TwoDa> twoDa(_twoDas.get("camerastyle"));
+    std::shared_ptr<TwoDA> twoDa(_twoDas.get("camerastyle"));
     if (!twoDa) {
         return;
     }

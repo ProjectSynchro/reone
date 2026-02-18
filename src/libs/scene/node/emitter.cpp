@@ -20,17 +20,17 @@
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/texture.h"
-#include "reone/graphics/textures.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/system/randomutil.h"
-
+#include "reone/resource/di/services.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/scene/graph.h"
-
 #include "reone/scene/node/camera.h"
 #include "reone/scene/node/particle.h"
+#include "reone/scene/render/pass.h"
+#include "reone/system/randomutil.h"
 
 using namespace reone::graphics;
 
@@ -42,32 +42,43 @@ static constexpr float kMotionBlurStrength = 0.25f;
 static constexpr float kProjectileSpeed = 16.0f;
 
 void EmitterSceneNode::init() {
-    _birthrate = _modelNode.birthrate().getByFrameOrElse(0, 0.0f);
-    _lifeExpectancy = _modelNode.lifeExp().getByFrameOrElse(0, 0.0f);
-    _size.x = _modelNode.xSize().getByFrameOrElse(0, 0.0f);
-    _size.y = _modelNode.ySize().getByFrameOrElse(0, 0.0f);
-    _frameStart = static_cast<int>(_modelNode.frameStart().getByFrameOrElse(0, 0.0f));
-    _frameEnd = static_cast<int>(_modelNode.frameEnd().getByFrameOrElse(0, 0.0f));
-    _fps = _modelNode.fps().getByFrameOrElse(0, 0.0f);
-    _spread = _modelNode.spread().getByFrameOrElse(0, 0.0f);
-    _velocity = _modelNode.velocity().getByFrameOrElse(0, 0.0f);
-    _randomVelocity = _modelNode.randVel().getByFrameOrElse(0, 0.0f);
-    _mass = _modelNode.mass().getByFrameOrElse(0, 0.0f);
-    _grav = _modelNode.grav().getByFrameOrElse(0, 0.0f);
-    _lightningDelay = _modelNode.lightingDelay().getByFrameOrElse(0, 0.0f);
-    _lightningRadius = _modelNode.lightingRadius().getByFrameOrElse(0, 0.0f);
-    _lightningScale = _modelNode.lightingScale().getByFrameOrElse(0, 0.0f);
-    _lightningSubDiv = static_cast<int>(_modelNode.lightingSubDiv().getByFrameOrElse(0, 0.0f));
+    _modelNode.floatValueAtTime(ControllerTypes::birthrate, 0.0f, _birthrate);
+    _modelNode.floatValueAtTime(ControllerTypes::lifeExp, 0.0f, _lifeExpectancy);
+    _modelNode.floatValueAtTime(ControllerTypes::xSize, 0.0f, _size.x);
+    _modelNode.floatValueAtTime(ControllerTypes::ySize, 0.0f, _size.y);
 
-    _particleSize.start = _modelNode.sizeStart().getByFrameOrElse(0, 0.0f);
-    _particleSize.mid = _modelNode.sizeMid().getByFrameOrElse(0, 0.0f);
-    _particleSize.end = _modelNode.sizeEnd().getByFrameOrElse(0, 0.0f);
-    _color.start = _modelNode.colorStart().getByFrameOrElse(0, glm::vec3(0.0f));
-    _color.mid = _modelNode.colorMid().getByFrameOrElse(0, glm::vec3(0.0f));
-    _color.end = _modelNode.colorEnd().getByFrameOrElse(0, glm::vec3(0.0f));
-    _alpha.start = _modelNode.alphaStart().getByFrameOrElse(0, 0.0f);
-    _alpha.mid = _modelNode.alphaMid().getByFrameOrElse(0, 0.0f);
-    _alpha.end = _modelNode.alphaEnd().getByFrameOrElse(0, 0.0f);
+    float frameStart, frameEnd;
+    if (_modelNode.floatValueAtTime(ControllerTypes::frameStart, 0.0f, frameStart)) {
+        _frameStart = static_cast<int>(frameStart);
+    }
+    if (_modelNode.floatValueAtTime(ControllerTypes::frameEnd, 0.0f, frameEnd)) {
+        _frameEnd = static_cast<int>(frameEnd);
+    }
+
+    _modelNode.floatValueAtTime(ControllerTypes::fps, 0.0f, _fps);
+    _modelNode.floatValueAtTime(ControllerTypes::spread, 0.0f, _spread);
+    _modelNode.floatValueAtTime(ControllerTypes::velocity, 0.0f, _velocity);
+    _modelNode.floatValueAtTime(ControllerTypes::randVel, 0.0f, _randomVelocity);
+    _modelNode.floatValueAtTime(ControllerTypes::mass, 0.0f, _mass);
+    _modelNode.floatValueAtTime(ControllerTypes::grav, 0.0f, _grav);
+    _modelNode.floatValueAtTime(ControllerTypes::lightingDelay, 0.0f, _lightningDelay);
+    _modelNode.floatValueAtTime(ControllerTypes::lightingRadius, 0.0f, _lightningRadius);
+    _modelNode.floatValueAtTime(ControllerTypes::lightingScale, 0.0f, _lightningScale);
+
+    float lightingSubDiv;
+    if (_modelNode.floatValueAtTime(ControllerTypes::lightingSubDiv, 0.0f, lightingSubDiv)) {
+        _lightningSubDiv = static_cast<int>(lightingSubDiv);
+    }
+
+    _modelNode.floatValueAtTime(ControllerTypes::sizeStart, 0.0f, _particleSize.start);
+    _modelNode.floatValueAtTime(ControllerTypes::sizeMid, 0.0f, _particleSize.mid);
+    _modelNode.floatValueAtTime(ControllerTypes::sizeEnd, 0.0f, _particleSize.end);
+    _modelNode.vectorValueAtTime(ControllerTypes::colorStart, 0.0f, _color.start);
+    _modelNode.vectorValueAtTime(ControllerTypes::colorMid, 0.0f, _color.mid);
+    _modelNode.vectorValueAtTime(ControllerTypes::colorEnd, 0.0f, _color.end);
+    _modelNode.floatValueAtTime(ControllerTypes::alphaStart, 0.0f, _alpha.start);
+    _modelNode.floatValueAtTime(ControllerTypes::alphaMid, 0.0f, _alpha.mid);
+    _modelNode.floatValueAtTime(ControllerTypes::alphaEnd, 0.0f, _alpha.end);
 
     if (_birthrate != 0.0f) {
         _birthInterval = 1.0f / _birthrate;
@@ -185,7 +196,7 @@ void EmitterSceneNode::spawnLightningParticles() {
     float halfW = 0.005f * _size.x;
     float halfH = 0.005f * _size.y;
     glm::vec3 origin(randomFloat(-halfW, halfW), randomFloat(-halfH, halfH), 0.0f);
-    glm::vec3 emitterSpaceRefPos(_absTransformInv * glm::vec4((*ref)->getOrigin(), 1.0f));
+    glm::vec3 emitterSpaceRefPos(_absTransformInv * glm::vec4((*ref)->origin(), 1.0f));
     glm::vec3 refToOrigin(emitterSpaceRefPos - origin);
     float distance = glm::abs(refToOrigin.z);
     float segmentLength = distance / static_cast<float>(_lightningSubDiv + 1);
@@ -239,12 +250,12 @@ void EmitterSceneNode::detonate() {
     doSpawnParticle();
 }
 
-void EmitterSceneNode::drawLeafs(const std::vector<SceneNode *> &leafs) {
+void EmitterSceneNode::renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) {
     if (leafs.empty()) {
         return;
     }
     auto emitter = _modelNode.emitter();
-    auto texture = emitter->texture;
+    auto texture = _resourceSvc.textures.get(emitter->textureName, TextureUsage::MainTex);
     if (!texture) {
         return;
     }
@@ -252,70 +263,54 @@ void EmitterSceneNode::drawLeafs(const std::vector<SceneNode *> &leafs) {
     auto emitterUp = glm::vec3(_absTransform[1]);
     auto emitterForward = glm::vec3(_absTransform[2]);
 
-    auto view = _sceneGraph.activeCamera()->camera()->view();
+    auto view = _sceneGraph.camera()->get().camera()->view();
     auto cameraRight = glm::vec3(view[0][0], view[1][0], view[2][0]);
     auto cameraUp = glm::vec3(view[0][1], view[1][1], view[2][1]);
     auto cameraForward = glm::vec3(view[0][2], view[1][2], view[2][2]);
 
-    _graphicsSvc.uniforms.setGeneral([&emitter](auto &general) {
-        general.resetLocals();
-        general.gridSize = emitter->gridSize;
-        switch (emitter->blendMode) {
-        case ModelNode::Emitter::BlendMode::Lighten:
-            general.featureMask |= UniformsFeatureFlags::premulalpha;
+    auto particles = std::vector<ParticleInstance>(leafs.size());
+    for (size_t i = 0; i < leafs.size(); ++i) {
+        const auto particle = static_cast<ParticleSceneNode *>(leafs[i]);
+        particles[i].frame = particle->frame();
+        particles[i].position = particle->origin();
+        particles[i].size = glm::vec2(particle->size());
+        particles[i].color = glm::vec4(particle->color(), particle->alpha());
+        switch (emitter->renderMode) {
+        case ModelNode::Emitter::RenderMode::BillboardToLocalZ:
+        case ModelNode::Emitter::RenderMode::MotionBlur:
+            if (emitter->renderMode == ModelNode::Emitter::RenderMode::MotionBlur) {
+                particles[i].size = glm::vec2(particle->size().x, (1.0f + kMotionBlurStrength * kProjectileSpeed) * particle->size().y);
+            }
+            particles[i].right = glm::vec4(emitterUp, 0.0f);
+            particles[i].up = glm::vec4(emitterRight, 0.0f);
             break;
-        case ModelNode::Emitter::BlendMode::Normal:
-        case ModelNode::Emitter::BlendMode::PunchThrough:
+        case ModelNode::Emitter::RenderMode::BillboardToWorldZ:
+            particles[i].right = glm::vec4(0.0f, 1.0f, 0.0, 0.0f);
+            particles[i].up = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+            break;
+        case ModelNode::Emitter::RenderMode::AlignedToParticleDir:
+            particles[i].right = glm::vec4(emitterRight, 0.0f);
+            particles[i].up = glm::vec4(emitterForward, 0.0f);
+            break;
+        case ModelNode::Emitter::RenderMode::Linked: {
+            auto particleUp = particle->dir();
+            auto particleForward = glm::cross(particleUp, cameraRight);
+            auto particleRight = glm::cross(particleForward, particleUp);
+            particles[i].right = glm::vec4(particleRight, 0.0f);
+            particles[i].up = glm::vec4(particleUp, 0.0f);
+            break;
+        }
+        case ModelNode::Emitter::RenderMode::Normal:
         default:
+            particles[i].right = glm::vec4(cameraRight, 0.0f);
+            particles[i].up = glm::vec4(cameraUp, 0.0f);
             break;
         }
-    });
-    _graphicsSvc.uniforms.setParticles([&](auto &particles) {
-        for (size_t i = 0; i < leafs.size(); ++i) {
-            auto particle = static_cast<ParticleSceneNode *>(leafs[i]);
-            particles.particles[i].positionFrame = glm::vec4(particle->getOrigin(), static_cast<float>(particle->frame()));
-            particles.particles[i].color = glm::vec4(particle->color(), particle->alpha());
-            particles.particles[i].size = glm::vec2(particle->size());
-            switch (emitter->renderMode) {
-            case ModelNode::Emitter::RenderMode::BillboardToLocalZ:
-            case ModelNode::Emitter::RenderMode::MotionBlur:
-                particles.particles[i].right = glm::vec4(emitterUp, 0.0f);
-                particles.particles[i].up = glm::vec4(emitterRight, 0.0f);
-                if (emitter->renderMode == ModelNode::Emitter::RenderMode::MotionBlur) {
-                    particles.particles[i].size = glm::vec2(particle->size().x, (1.0f + kMotionBlurStrength * kProjectileSpeed) * particle->size().y);
-                }
-                break;
-            case ModelNode::Emitter::RenderMode::BillboardToWorldZ:
-                particles.particles[i].right = glm::vec4(0.0f, 1.0f, 0.0, 0.0f);
-                particles.particles[i].up = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-                break;
-            case ModelNode::Emitter::RenderMode::AlignedToParticleDir:
-                particles.particles[i].right = glm::vec4(emitterRight, 0.0f);
-                particles.particles[i].up = glm::vec4(emitterForward, 0.0f);
-                break;
-            case ModelNode::Emitter::RenderMode::Linked: {
-                auto particleUp = particle->dir();
-                auto particleForward = glm::cross(particleUp, cameraRight);
-                auto particleRight = glm::cross(particleForward, particleUp);
-                particles.particles[i].right = glm::vec4(particleRight, 0.0f);
-                particles.particles[i].up = glm::vec4(particleUp, 0.0f);
-                break;
-            }
-            case ModelNode::Emitter::RenderMode::Normal:
-            default:
-                particles.particles[i].right = glm::vec4(cameraRight, 0.0f);
-                particles.particles[i].up = glm::vec4(cameraUp, 0.0f);
-                break;
-            }
-        }
-    });
-    _graphicsSvc.shaders.use(ShaderProgramId::Particle);
-    _graphicsSvc.textures.bind(*texture);
-
+    }
     bool twosided = _modelNode.emitter()->twosided || _modelNode.emitter()->renderMode == ModelNode::Emitter::RenderMode::MotionBlur;
-    _graphicsSvc.context.withFaceCulling(twosided ? CullFaceMode::None : CullFaceMode::Back, [this, &leafs] {
-        _graphicsSvc.meshes.billboard().drawInstanced(leafs.size());
-    });
+    auto faceCulling = twosided ? FaceCullMode::None : FaceCullMode::Back;
+    bool premultipliedAlpha = emitter->blendMode == ModelNode::Emitter::BlendMode::Lighten;
+    pass.drawParticles(*texture, faceCulling, premultipliedAlpha, emitter->gridSize, particles);
 }
 
 } // namespace scene

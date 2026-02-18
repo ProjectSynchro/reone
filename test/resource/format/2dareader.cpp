@@ -26,7 +26,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(two_da_reader, should_read_two_da) {
+TEST(TwoDAReader, should_read_two_da) {
     // given
 
     auto input = StringBuilder()
@@ -47,7 +47,7 @@ TEST(two_da_reader, should_read_two_da) {
                      .string();
 
     auto stream = MemoryInputStream(input);
-    auto reader = TwoDaReader(stream);
+    auto reader = TwoDAReader(stream);
 
     // when
 
@@ -55,7 +55,7 @@ TEST(two_da_reader, should_read_two_da) {
 
     // then
 
-    auto twoDa = reader.twoDa();
+    auto twoDa = reader.twoDA();
     EXPECT_EQ(twoDa->getColumnCount(), 2);
     EXPECT_EQ(twoDa->getRowCount(), 2);
     EXPECT_EQ(std::string("unique"), twoDa->getString(0, "key"));

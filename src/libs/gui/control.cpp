@@ -18,19 +18,18 @@
 #include "reone/gui/control.h"
 
 #include "reone/graphics/context.h"
-#include "reone/graphics/fonts.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/pipeline.h"
+#include "reone/graphics/meshregistry.h"
 #include "reone/graphics/renderbuffer.h"
-#include "reone/graphics/shaders.h"
-#include "reone/graphics/textures.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/textutil.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/window.h"
 #include "reone/resource/gff.h"
+#include "reone/resource/provider/fonts.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/graphs.h"
+#include "reone/scene/render/pipeline.h"
 
 #include "reone/gui/gui.h"
 
@@ -42,15 +41,15 @@ namespace reone {
 
 namespace gui {
 
-ControlType Control::getType(const schema::GUI_BASECONTROL &gui) {
+ControlType Control::getType(const resource::generated::GUI_BASECONTROL &gui) {
     return static_cast<ControlType>(gui.CONTROLTYPE);
 }
 
-std::string Control::getTag(const schema::GUI_BASECONTROL &gui) {
+std::string Control::getTag(const resource::generated::GUI_BASECONTROL &gui) {
     return gui.TAG;
 }
 
-std::string Control::getParent(const schema::GUI_BASECONTROL &gui) {
+std::string Control::getParent(const resource::generated::GUI_BASECONTROL &gui) {
     return gui.Obj_Parent;
 }
 
@@ -67,7 +66,7 @@ void Control::Extent::getCenter(int &x, int &y) const {
     y = top + height / 2;
 }
 
-void Control::load(const schema::GUI_BASECONTROL &gui, bool protoItem) {
+void Control::load(const resource::generated::GUI_BASECONTROL &gui, bool protoItem) {
     loadExtent(gui.EXTENT);
     loadBorder(gui.BORDER);
 
@@ -76,7 +75,7 @@ void Control::load(const schema::GUI_BASECONTROL &gui, bool protoItem) {
     } else if (static_cast<ControlType>(gui.CONTROLTYPE) == ControlType::ScrollBar) {
         // do nothing
     } else if (protoItem) {
-        auto &protoItem = *static_cast<const schema::GUI_CONTROLS_PROTOITEM *>(&gui);
+        auto &protoItem = *static_cast<const resource::generated::GUI_CONTROLS_PROTOITEM *>(&gui);
         if (protoItem.TEXT) {
             loadText(*protoItem.TEXT);
         }
@@ -84,7 +83,7 @@ void Control::load(const schema::GUI_BASECONTROL &gui, bool protoItem) {
             loadHilight(*protoItem.HILIGHT);
         }
     } else {
-        auto &controlStruct = *static_cast<const schema::GUI_CONTROLS *>(&gui);
+        auto &controlStruct = *static_cast<const resource::generated::GUI_CONTROLS *>(&gui);
         _id = controlStruct.ID;
         _padding = controlStruct.PADDING;
         if (controlStruct.TEXT) {
@@ -98,14 +97,14 @@ void Control::load(const schema::GUI_BASECONTROL &gui, bool protoItem) {
     updateTransform();
 }
 
-void Control::loadExtent(const schema::GUI_EXTENT &gui) {
+void Control::loadExtent(const resource::generated::GUI_EXTENT &gui) {
     _extent.left = gui.LEFT;
     _extent.top = gui.TOP;
     _extent.width = gui.WIDTH;
     _extent.height = gui.HEIGHT;
 }
 
-void Control::loadBorder(const schema::GUI_BORDER &gui) {
+void Control::loadBorder(const resource::generated::GUI_BORDER &gui) {
     std::string corner(gui.CORNER);
     std::string edge(gui.EDGE);
     std::string fill(gui.FILL);
@@ -113,24 +112,24 @@ void Control::loadBorder(const schema::GUI_BORDER &gui) {
     _border = std::make_shared<Border>();
 
     if (!corner.empty() && corner != "0") {
-        _border->corner = _graphicsSvc.textures.get(corner, TextureUsage::GUI);
+        _border->corner = _resourceSvc.textures.get(corner, TextureUsage::GUI);
     }
     if (!edge.empty() && edge != "0") {
-        _border->edge = _graphicsSvc.textures.get(edge, TextureUsage::GUI);
+        _border->edge = _resourceSvc.textures.get(edge, TextureUsage::GUI);
     }
     if (!fill.empty() && fill != "0") {
-        _border->fill = _graphicsSvc.textures.get(fill, TextureUsage::GUI);
+        _border->fill = _resourceSvc.textures.get(fill, TextureUsage::GUI);
     }
 
     _border->dimension = gui.DIMENSION;
     _border->color = gui.COLOR;
 }
 
-void Control::loadText(const schema::GUI_TEXT &gui) {
-    _text.font = _graphicsSvc.fonts.get(gui.FONT);
+void Control::loadText(const resource::generated::GUI_TEXT &gui) {
+    _text.font = _resourceSvc.fonts.get(gui.FONT);
 
     int strRef = gui.STRREF;
-    _text.text = strRef == -1 ? gui.TEXT : _strings.getText(strRef);
+    _text.text = strRef == -1 ? gui.TEXT : _resourceSvc.strings.getText(strRef);
 
     _text.color = gui.COLOR;
     _text.align = static_cast<TextAlign>(gui.ALIGNMENT);
@@ -145,7 +144,7 @@ void Control::updateTextLines() {
     }
 }
 
-void Control::loadHilight(const schema::GUI_BORDER &gui) {
+void Control::loadHilight(const resource::generated::GUI_BORDER &gui) {
     std::string corner(gui.CORNER);
     std::string edge(gui.EDGE);
     std::string fill(gui.FILL);
@@ -153,13 +152,13 @@ void Control::loadHilight(const schema::GUI_BORDER &gui) {
     _hilight = std::make_shared<Border>();
 
     if (!corner.empty() && corner != "0") {
-        _hilight->corner = _graphicsSvc.textures.get(corner, TextureUsage::GUI);
+        _hilight->corner = _resourceSvc.textures.get(corner, TextureUsage::GUI);
     }
     if (!edge.empty() && edge != "0") {
-        _hilight->edge = _graphicsSvc.textures.get(edge, TextureUsage::GUI);
+        _hilight->edge = _resourceSvc.textures.get(edge, TextureUsage::GUI);
     }
     if (!fill.empty() && fill != "0") {
-        _hilight->fill = _graphicsSvc.textures.get(fill, TextureUsage::GUI);
+        _hilight->fill = _resourceSvc.textures.get(fill, TextureUsage::GUI);
     }
 
     _hilight->dimension = gui.DIMENSION;
@@ -187,82 +186,76 @@ bool Control::handleClick(int x, int y) {
 }
 
 void Control::update(float dt) {
-    if (_sceneName.empty() || !_visible) {
+    if (!_visible) {
         return;
     }
-    _sceneGraphs.get(_sceneName).update(dt);
+    for (auto &child : _children) {
+        child.get().update(dt);
+    }
+    if (!_sceneName.empty()) {
+        _sceneGraphs.get(_sceneName).update(dt);
+    }
 }
 
-void Control::draw(const glm::ivec2 &screenSize, const glm::ivec2 &offset, const std::vector<std::string> &text) {
+void Control::render(const glm::ivec2 &screenSize,
+                     const glm::ivec2 &offset,
+                     IRenderPass &pass) {
     if (!_visible) {
         return;
     }
     glm::ivec2 size(_extent.width, _extent.height);
-    if (_focus && _hilight) {
-        drawBorder(*_hilight, offset, size);
+    if (_selected && _hilight) {
+        renderBorder(*_hilight, offset, size, pass);
     } else if (_border) {
-        drawBorder(*_border, offset, size);
+        renderBorder(*_border, offset, size, pass);
     }
-    if (!text.empty()) {
-        drawText(text, offset, size);
+    if (!_textLines.empty()) {
+        renderText(_textLines, offset, size, pass);
     }
-    if (_sceneName.empty()) {
-        return;
+    if (!_sceneName.empty()) {
+        std::optional<std::reference_wrapper<Texture>> output;
+        _graphicsSvc.context.withBlendMode(BlendMode::None, [this, &output]() {
+            output = _sceneGraphs.get(_sceneName).render({_extent.width, _extent.height});
+        });
+        _graphicsSvc.uniforms.setGlobals([&screenSize](auto &globals) {
+            globals.reset();
+            globals.projection = glm::ortho(
+                0.0f,
+                static_cast<float>(screenSize.x),
+                static_cast<float>(screenSize.y),
+                0.0f, 0.0f, 100.0f);
+            globals.projectionInv = glm::inverse(globals.projection);
+        });
+        _graphicsSvc.context.withDepthTestMode(DepthTestMode::None, [this, &offset, &pass, &output]() {
+            pass.drawImage(
+                *output,
+                {_extent.left + offset.x, _extent.top + offset.y},
+                {_extent.width, _extent.height});
+        });
     }
-    std::shared_ptr<Texture> output;
-    _graphicsSvc.context.withBlending(BlendMode::None, [this, &output]() {
-        output = _graphicsSvc.pipeline.draw(_sceneGraphs.get(_sceneName), {_extent.width, _extent.height});
-    });
-    glm::mat4 projection(glm::ortho(
-        0.0f,
-        static_cast<float>(screenSize.x),
-        static_cast<float>(screenSize.y),
-        0.0f));
-    glm::mat4 transform(1.0f);
-    transform = glm::translate(transform, glm::vec3(_extent.left + offset.x, _extent.top + offset.y, 0.0f));
-    transform = glm::scale(transform, glm::vec3(_extent.width, _extent.height, 1.0f));
-
-    _graphicsSvc.uniforms.setGeneral([this, projection, transform](auto &general) {
-        general.resetGlobals();
-        general.resetLocals();
-        general.projection = std::move(projection);
-        general.model = std::move(transform);
-    });
-    _graphicsSvc.shaders.use(ShaderProgramId::GUI);
-    _graphicsSvc.textures.bind(*output);
-    _graphicsSvc.context.withDepthTest(DepthTestMode::None, [this]() {
-        _graphicsSvc.meshes.quad().draw();
-    });
 }
 
-void Control::drawBorder(const Border &border, const glm::ivec2 &offset, const glm::ivec2 &size) {
-    _graphicsSvc.shaders.use(ShaderProgramId::GUI);
+void Control::renderBorder(const Border &border,
+                           const glm::ivec2 &offset,
+                           const glm::ivec2 &size,
+                           IRenderPass &pass) {
+    _graphicsSvc.context.useProgram(_graphicsSvc.shaderRegistry.get(ShaderProgramId::mvpTexture));
 
     glm::vec3 color(getBorderColor());
     glm::mat4 transform(1.0f);
+    glm::mat3x4 uv(1.0f);
 
     if (border.fill) {
-        _graphicsSvc.textures.bind(*border.fill);
-
-        int x = _extent.left + border.dimension + offset.x;
-        int y = _extent.top + border.dimension + offset.y;
-        int w = size.x - 2 * border.dimension;
-        int h = size.y - 2 * border.dimension;
-
-        transform = glm::translate(glm::vec3(x, y, 0.0f));
-        transform *= glm::scale(glm::vec3(w, h, 1.0f));
-
-        _graphicsSvc.uniforms.setGeneral([this, &transform](auto &general) {
-            general.resetLocals();
-            general.featureMask = _discardEnabled ? UniformsFeatureFlags::discard : 0;
-            general.projection = _graphicsSvc.window.getOrthoProjection();
-            general.model = transform;
-            general.discardColor = glm::vec4(_discardColor, 1.0f);
-        });
-
-        auto blendMode = border.fill->features().blending == Texture::Blending::Additive ? BlendMode::Additive : BlendMode::Normal;
-        _graphicsSvc.context.withBlending(blendMode, [this, &border]() {
-            _graphicsSvc.meshes.quad().draw();
+        auto blending = border.fill->features().blending == Texture::Blending::Additive
+                            ? BlendMode::Additive
+                            : BlendMode::Normal;
+        _graphicsSvc.context.withBlendMode(blending, [&]() {
+            pass.drawImage(
+                *border.fill,
+                {_extent.left + border.dimension + offset.x, _extent.top + border.dimension + offset.y},
+                {size.x - 2 * border.dimension, size.y - 2 * border.dimension},
+                glm::vec4(1.0f),
+                uv);
         });
     }
 
@@ -270,45 +263,33 @@ void Control::drawBorder(const Border &border, const glm::ivec2 &offset, const g
         int width = size.x - 2 * border.dimension;
         int height = size.y - 2 * border.dimension;
 
-        _graphicsSvc.textures.bind(*border.edge);
-
         if (height > 0.0f) {
             int x = _extent.left + offset.x;
             int y = _extent.top + border.dimension + offset.y;
 
             // Left edge
-            transform = glm::translate(glm::vec3(x, y, 0.0f));
-            transform *= glm::scale(glm::vec3(border.dimension, height, 1.0f));
-
-            _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-                general.resetLocals();
-                general.projection = _graphicsSvc.window.getOrthoProjection();
-                general.model = transform;
-                general.uv = glm::mat3x4(
-                    glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
-                    glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-                    glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
-                general.color = glm::vec4(color, 1.0f);
-            });
-
-            _graphicsSvc.meshes.quad().draw();
+            uv = glm::mat3x4(
+                glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+                glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+                glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+            pass.drawImage(
+                *border.edge,
+                {x, y},
+                {border.dimension, height},
+                glm::vec4(color, 1.0f),
+                uv);
 
             // Right edge
-            transform = glm::translate(glm::vec3(x + size.x - border.dimension, y, 0.0f));
-            transform *= glm::scale(glm::vec3(border.dimension, height, 1.0f));
-
-            _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-                general.resetLocals();
-                general.projection = _graphicsSvc.window.getOrthoProjection();
-                general.model = transform;
-                general.uv = glm::mat3x4(
-                    glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-                    glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-                    glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-                general.color = glm::vec4(color, 1.0f);
-            });
-
-            _graphicsSvc.meshes.quad().draw();
+            uv = glm::mat3x4(
+                glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+                glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+                glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            pass.drawImage(
+                *border.edge,
+                {x + size.x - border.dimension, y},
+                {border.dimension, height},
+                glm::vec4(color, 1.0f),
+                uv);
         }
 
         if (width > 0.0f) {
@@ -316,34 +297,23 @@ void Control::drawBorder(const Border &border, const glm::ivec2 &offset, const g
             int y = _extent.top + offset.y;
 
             // Top edge
-            transform = glm::translate(glm::vec3(x, y, 0.0f));
-            transform *= glm::scale(glm::vec3(width, border.dimension, 1.0f));
-
-            _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-                general.resetLocals();
-                general.projection = _graphicsSvc.window.getOrthoProjection();
-                general.model = transform;
-                general.color = glm::vec4(color, 1.0f);
-            });
-
-            _graphicsSvc.meshes.quad().draw();
+            pass.drawImage(
+                *border.edge,
+                {x, y},
+                {width, border.dimension},
+                glm::vec4(color, 1.0f));
 
             // Bottom edge
-            transform = glm::translate(glm::vec3(x, y + size.y - border.dimension, 0.0f));
-            transform *= glm::scale(glm::vec3(width, border.dimension, 1.0f));
-
-            _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-                general.resetLocals();
-                general.projection = _graphicsSvc.window.getOrthoProjection();
-                general.model = transform;
-                general.uv = glm::mat3x4(
-                    glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-                    glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
-                    glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
-                general.color = glm::vec4(color, 1.0f);
-            });
-
-            _graphicsSvc.meshes.quad().draw();
+            uv = glm::mat3x4(
+                glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+                glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+                glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+            pass.drawImage(
+                *border.edge,
+                {x, y + size.y - border.dimension},
+                {width, border.dimension},
+                glm::vec4(color, 1.0f),
+                uv);
         }
     }
 
@@ -351,71 +321,48 @@ void Control::drawBorder(const Border &border, const glm::ivec2 &offset, const g
         int x = _extent.left + offset.x;
         int y = _extent.top + offset.y;
 
-        _graphicsSvc.textures.bind(*border.corner);
-
         // Top left corner
-        transform = glm::translate(glm::vec3(x, y, 0.0f));
-        transform *= glm::scale(glm::vec3(border.dimension, border.dimension, 1.0f));
-
-        _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-            general.resetLocals();
-            general.projection = _graphicsSvc.window.getOrthoProjection();
-            general.model = transform;
-            general.color = glm::vec4(color, 1.0f);
-        });
-
-        _graphicsSvc.meshes.quad().draw();
+        pass.drawImage(
+            *border.corner,
+            {x, y},
+            {border.dimension, border.dimension},
+            glm::vec4(color, 1.0f));
 
         // Bottom left corner
-        transform = glm::translate(glm::vec3(x, y + size.y - border.dimension, 0.0f));
-        transform *= glm::scale(glm::vec3(border.dimension, border.dimension, 1.0f));
-
-        _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-            general.resetLocals();
-            general.projection = _graphicsSvc.window.getOrthoProjection();
-            general.model = transform;
-            general.uv = glm::mat3x4(
-                glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-                glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
-                glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
-            general.color = glm::vec4(color, 1.0f);
-        });
-
-        _graphicsSvc.meshes.quad().draw();
+        uv = glm::mat3x4(
+            glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+        pass.drawImage(
+            *border.corner,
+            {x, y + size.y - border.dimension},
+            {border.dimension, border.dimension},
+            glm::vec4(color, 1.0f),
+            uv);
 
         // Top right corner
-        transform = glm::translate(glm::vec3(x + size.x - border.dimension, y, 0.0f));
-        transform *= glm::scale(glm::vec3(border.dimension, border.dimension, 1.0f));
-
-        _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-            general.resetLocals();
-            general.projection = _graphicsSvc.window.getOrthoProjection();
-            general.model = transform;
-            general.uv = glm::mat3x4(
-                glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
-                glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-                glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
-            general.color = glm::vec4(color, 1.0f);
-        });
-
-        _graphicsSvc.meshes.quad().draw();
+        uv = glm::mat3x4(
+            glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+            glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+        pass.drawImage(
+            *border.corner,
+            {x + size.x - border.dimension, y},
+            {border.dimension, border.dimension},
+            glm::vec4(color, 1.0f),
+            uv);
 
         // Bottom right corner
-        transform = glm::translate(glm::vec3(x + size.x - border.dimension, y + size.y - border.dimension, 0.0f));
-        transform *= glm::scale(glm::vec3(border.dimension, border.dimension, 1.0f));
-
-        _graphicsSvc.uniforms.setGeneral([this, &transform, &color](auto &general) {
-            general.resetLocals();
-            general.projection = _graphicsSvc.window.getOrthoProjection();
-            general.model = transform;
-            general.uv = glm::mat3x4(
-                glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
-                glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
-                glm::vec4(1.0f, 1.0f, 0.0f, 0.0f));
-            general.color = glm::vec4(color, 1.0f);
-        });
-
-        _graphicsSvc.meshes.quad().draw();
+        uv = glm::mat3x4(
+            glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+            glm::vec4(1.0f, 1.0f, 0.0f, 0.0f));
+        pass.drawImage(
+            *border.corner,
+            {x + size.x - border.dimension, y + size.y - border.dimension},
+            {border.dimension, border.dimension},
+            glm::vec4(color, 1.0f),
+            uv);
     }
 }
 
@@ -423,21 +370,24 @@ const glm::vec3 &Control::getBorderColor() const {
     if (_useBorderColorOverride) {
         return _borderColorOverride;
     }
-    return (_focus && _hilight) ? _hilight->color : _border->color;
+    return (_selected && _hilight) ? _hilight->color : _border->color;
 }
 
-void Control::drawText(const std::vector<std::string> &lines, const glm::ivec2 &offset, const glm::ivec2 &size) {
+void Control::renderText(const std::vector<std::string> &lines,
+                         const glm::ivec2 &offset,
+                         const glm::ivec2 &size,
+                         IRenderPass &pass) {
     glm::ivec2 position;
     TextGravity gravity;
     getTextPosition(position, static_cast<int>(lines.size()), size, gravity);
 
     glm::vec3 linePosition(0.0f);
-    glm::vec3 color((_focus && _hilight) ? _hilight->color : _text.color);
+    glm::vec3 color((_selected && _hilight) ? _hilight->color : _text.color);
 
     for (auto &line : lines) {
         linePosition.x = static_cast<float>(position.x + offset.x);
         linePosition.y = static_cast<float>(position.y + offset.y);
-        _text.font->draw(line, linePosition, color, gravity);
+        _text.font->render(line, linePosition, color, gravity);
         position.y += static_cast<int>(_text.font->height());
     }
 }
@@ -518,8 +468,8 @@ void Control::stretch(float x, float y, int mask) {
     updateTransform();
 }
 
-void Control::setFocusable(bool focusable) {
-    _focusable = focusable;
+void Control::setSelectable(bool selectable) {
+    _selectable = selectable;
 }
 
 void Control::setHeight(int height) {
@@ -536,14 +486,14 @@ void Control::setDisabled(bool disabled) {
     _disabled = disabled;
 }
 
-void Control::setFocus(bool focus) {
-    if (_focus == focus)
+void Control::setSelected(bool setSelected) {
+    if (_selected == setSelected)
         return;
 
-    _focus = focus;
+    _selected = setSelected;
 
-    if (_onFocusChanged) {
-        _onFocusChanged(focus);
+    if (_onSelectedChanged) {
+        _onSelectedChanged(setSelected);
     }
 }
 
@@ -570,7 +520,7 @@ void Control::setBorder(Border border) {
 void Control::setBorderFill(std::string resRef) {
     std::shared_ptr<Texture> texture;
     if (!resRef.empty()) {
-        texture = _graphicsSvc.textures.get(resRef, TextureUsage::GUI);
+        texture = _resourceSvc.textures.get(resRef, TextureUsage::GUI);
     }
     setBorderFill(std::move(texture));
 }
@@ -614,7 +564,7 @@ void Control::setHilightColor(glm::vec3 color) {
 void Control::setHilightFill(std::string resRef) {
     std::shared_ptr<Texture> texture;
     if (!resRef.empty()) {
-        texture = _graphicsSvc.textures.get(resRef, TextureUsage::GUI);
+        texture = _resourceSvc.textures.get(resRef, TextureUsage::GUI);
     }
     setHilightFill(texture);
 }
@@ -657,11 +607,6 @@ void Control::setSceneName(std::string name) {
 
 void Control::setPadding(int padding) {
     _padding = padding;
-}
-
-void Control::setDiscardColor(glm::vec3 color) {
-    _discardEnabled = true;
-    _discardColor = color;
 }
 
 } // namespace gui

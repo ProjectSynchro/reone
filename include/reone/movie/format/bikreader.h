@@ -27,7 +27,7 @@ struct GraphicsServices;
 
 namespace audio {
 
-struct AudioServices;
+class IAudioMixer;
 
 }
 
@@ -40,10 +40,10 @@ public:
     BikReader(
         std::filesystem::path path,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::IAudioMixer &audioPlayer) :
         _path(std::move(path)),
         _graphicsSvc(graphicsSvc),
-        _audioSvc(audioSvc) {
+        _audioPlayer(audioPlayer) {
     }
 
     void load();
@@ -53,7 +53,7 @@ public:
 private:
     std::filesystem::path _path;
     graphics::GraphicsServices &_graphicsSvc;
-    audio::AudioServices &_audioSvc;
+    audio::IAudioMixer &_audioPlayer;
 
     std::shared_ptr<Movie> _movie;
 };

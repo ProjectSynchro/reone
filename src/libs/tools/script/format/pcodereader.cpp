@@ -17,11 +17,10 @@
 
 #include "reone/tools/script/format/pcodereader.h"
 
-#include "reone/resource/exception/format.h"
 #include "reone/script/instrutil.h"
 #include "reone/script/routines.h"
-
-using namespace reone::resource;
+#include "reone/system/exception/validation.h"
+#include "reone/system/textreader.h"
 
 namespace reone {
 
@@ -32,40 +31,35 @@ void PcodeReader::load() {
     std::map<int, std::string> labelByLineIdx;
     std::map<int, uint32_t> addrByLineIdx;
 
-    std::ifstream pcode(_path);
-    std::string line;
+    TextReader reader {_pcode};
     std::smatch what;
     std::regex labelRegex("^([_\\d\\w]+):$");
     uint32_t addr = 13;
-    while (getline(pcode, line)) {
-        auto addrSepIdx = line.find_first_of("\t");
+    while (auto line = reader.readLine()) {
+        auto addrSepIdx = line->find_first_of("\t");
         if (addrSepIdx != std::string::npos) {
-            line = line.substr(addrSepIdx + 1);
+            line = line->substr(addrSepIdx + 1);
         }
-        boost::trim(line);
-        if (line.empty()) {
+        boost::trim(*line);
+        if (line->empty()) {
             continue;
         }
         int lineIdx = static_cast<int>(insLines.size());
-        if (std::regex_match(line, what, labelRegex)) {
+        if (std::regex_match(*line, what, labelRegex)) {
             labelByLineIdx[lineIdx] = what[1].str();
             continue;
         }
         addrByLineIdx[lineIdx] = addr;
-        addr += getInstructionSize(line);
-        insLines.push_back(line);
+        addr += getInstructionSize(*line);
+        insLines.push_back(*line);
     }
-
-    std::filesystem::path filename(_path.filename());
-    filename.replace_extension(); // drop .pcode
-    filename.replace_extension(); // drop .ncs
 
     _addrByLabel.clear();
     for (auto &pair : labelByLineIdx) {
         _addrByLabel[pair.second] = addrByLineIdx[pair.first];
     }
 
-    _program = std::make_shared<ScriptProgram>(filename.string());
+    _program = std::make_shared<ScriptProgram>(_programName);
     for (size_t i = 0; i < insLines.size(); ++i) {
         uint32_t insAddr = addrByLineIdx.find(static_cast<int>(i))->second;
         _program->add(parseInstruction(insLines[i], insAddr));
@@ -184,7 +178,7 @@ Instruction PcodeReader::parseInstruction(const std::string &line, uint32_t addr
             const std::string &label = args[0];
             auto maybeAddr = _addrByLabel.find(label);
             if (maybeAddr == _addrByLabel.end()) {
-                throw FormatException("Instruction address not found by label '" + label + "'");
+                throw ValidationException("Instruction address not found by label '" + label + "'");
             }
             ins.jumpOffset = maybeAddr->second - ins.offset;
         });
@@ -227,7 +221,7 @@ void PcodeReader::applyArguments(const std::string &line, const std::string &res
     std::smatch what;
     std::regex re(restr);
     if (!std::regex_match(line, what, re)) {
-        throw FormatException(str(boost::format("Arguments line '%s' must match regular expression '%s'") % line % restr));
+        throw ValidationException(str(boost::format("Arguments line '%s' must match regular expression '%s'") % line % restr));
     }
     std::vector<std::string> args;
     for (int i = 0; i < numArgs; ++i) {

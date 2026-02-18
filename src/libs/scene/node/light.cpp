@@ -19,17 +19,17 @@
 
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
+#include "reone/graphics/material.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/texture.h"
-#include "reone/graphics/textures.h"
 #include "reone/graphics/uniforms.h"
-#include "reone/graphics/window.h"
-
+#include "reone/resource/di/services.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/scene/graph.h"
-
 #include "reone/scene/node/camera.h"
+#include "reone/scene/render/pipeline.h"
 
 using namespace reone::graphics;
 
@@ -41,9 +41,9 @@ static constexpr float kFadeSpeed = 2.0f;
 static constexpr float kMinDirectionalLightRadius = 100.0f;
 
 void LightSceneNode::init() {
-    _color = _modelNode.color().getByFrameOrElse(0, glm::vec3(0.0f));
-    _radius = _modelNode.radius().getByFrameOrElse(0, 0.0f);
-    _multiplier = _modelNode.multiplier().getByFrameOrElse(0, 0.0f);
+    _modelNode.vectorValueAtTime(ControllerTypes::color, 0.0f, _color);
+    _modelNode.floatValueAtTime(ControllerTypes::radius, 0.0f, _radius);
+    _modelNode.floatValueAtTime(ControllerTypes::multiplier, 0.0f, _multiplier);
 }
 
 void LightSceneNode::update(float dt) {
@@ -66,24 +66,18 @@ void LightSceneNode::update(float dt) {
     }
 }
 
-void LightSceneNode::drawLensFlare(const ModelNode::LensFlare &flare) {
-    std::shared_ptr<Camera> camera(_sceneGraph.camera());
+void LightSceneNode::renderLensFlare(IRenderPass &pass, const ModelNode::LensFlare &flare) {
+    std::shared_ptr<Camera> camera(_sceneGraph.camera()->get().camera());
     if (!camera) {
         return;
     }
-    _graphicsSvc.uniforms.setGeneral([this, &flare](auto &general) {
-        general.resetLocals();
-        general.featureMask = UniformsFeatureFlags::fixedsize;
-        general.model = glm::translate(getOrigin());
-        general.billboardSize = 0.2f * flare.size;
-        general.alpha = 0.5f;
-        general.color = glm::vec4(_color, 1.0f);
-    });
-    _graphicsSvc.shaders.use(ShaderProgramId::Billboard);
-    _graphicsSvc.textures.bind(*flare.texture);
-    _graphicsSvc.context.withBlending(BlendMode::Additive, [this]() {
-        _graphicsSvc.meshes.billboard().draw();
-    });
+    auto texture = _resourceSvc.textures.get(flare.textureName);
+    if (!texture) {
+        return;
+    }
+    auto color = glm::vec4(_color, 0.5f);
+    auto transform = glm::translate(origin());
+    pass.drawBillboard(*texture, color, transform, glm::inverse(transform), 0.2f * flare.size);
 }
 
 bool LightSceneNode::isDirectional() const {

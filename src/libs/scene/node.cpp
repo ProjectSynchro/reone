@@ -67,36 +67,36 @@ void SceneNode::update(float dt) {
     }
 }
 
-glm::vec3 SceneNode::getOrigin() const {
+glm::vec3 SceneNode::origin() const {
     return glm::vec3(_absTransform[3]);
 }
 
-glm::vec2 SceneNode::getOrigin2D() const {
+glm::vec2 SceneNode::origin2D() const {
     return glm::vec2(_absTransform[3]);
 }
 
 float SceneNode::getDistanceTo(const glm::vec3 &point) const {
-    return glm::distance(getOrigin(), point);
+    return glm::distance(origin(), point);
 }
 
 float SceneNode::getDistanceTo(const SceneNode &other) const {
-    return glm::distance(getOrigin(), other.getOrigin());
+    return glm::distance(origin(), other.origin());
 }
 
 float SceneNode::getSquareDistanceTo(const glm::vec3 &point) const {
-    return glm::distance2(getOrigin(), point);
+    return glm::distance2(origin(), point);
 }
 
 float SceneNode::getSquareDistanceTo(const SceneNode &other) const {
-    return glm::distance2(getOrigin(), other.getOrigin());
+    return glm::distance2(origin(), other.origin());
 }
 
 float SceneNode::getSquareDistanceTo2D(const glm::vec2 &point) const {
-    return glm::distance2(getOrigin2D(), point);
+    return glm::distance2(origin2D(), point);
 }
 
 glm::vec3 SceneNode::getWorldCenterOfAABB() const {
-    return _absTransform * glm::vec4(_aabb.center(), 1.0f);
+    return _absTransform * glm::vec4(0.5f * (_aabb.min() + _aabb.max()), 1.0f);
 }
 
 void SceneNode::setLocalTransform(glm::mat4 transform) {

@@ -23,31 +23,32 @@ namespace reone {
 
 namespace graphics {
 
-class GraphicsContext;
-class Meshes;
-class Shaders;
+class IStatistic;
+
+class Context;
+class MeshRegistry;
+class ShaderRegistry;
 class Texture;
-class Textures;
 class Uniforms;
 
 class Font {
 public:
     Font(
-        GraphicsContext &graphicsContext,
-        Meshes &meshes,
-        Shaders &shaders,
-        Textures &textures,
+        Context &context,
+        MeshRegistry &meshRegistry,
+        ShaderRegistry &shaderRegistry,
+        IStatistic &statistic,
         Uniforms &uniforms) :
-        _graphicsContext(graphicsContext),
-        _meshes(meshes),
-        _shaders(shaders),
-        _textures(textures),
+        _context(context),
+        _meshRegistry(meshRegistry),
+        _shaderRegistry(shaderRegistry),
+        _statistic(statistic),
         _uniforms(uniforms) {
     }
 
     void load(std::shared_ptr<Texture> texture);
 
-    void draw(
+    void render(
         const std::string &text,
         const glm::vec3 &position,
         const glm::vec3 &color = glm::vec3(1.0f, 1.0f, 1.0f),
@@ -70,10 +71,10 @@ private:
 
     // Services
 
-    GraphicsContext &_graphicsContext;
-    Meshes &_meshes;
-    Shaders &_shaders;
-    Textures &_textures;
+    Context &_context;
+    MeshRegistry &_meshRegistry;
+    ShaderRegistry &_shaderRegistry;
+    IStatistic &_statistic;
     Uniforms &_uniforms;
 
     // END Services

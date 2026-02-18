@@ -21,16 +21,16 @@
 #include "reone/graphics/context.h"
 #include "reone/graphics/di/services.h"
 #include "reone/graphics/mesh.h"
-#include "reone/graphics/meshes.h"
-#include "reone/graphics/shaders.h"
+#include "reone/graphics/meshregistry.h"
+#include "reone/graphics/shaderregistry.h"
 #include "reone/graphics/texture.h"
-#include "reone/graphics/textures.h"
 #include "reone/graphics/triangleutil.h"
 #include "reone/graphics/uniforms.h"
-
+#include "reone/resource/di/services.h"
+#include "reone/resource/provider/textures.h"
 #include "reone/scene/graph.h"
-
 #include "reone/scene/node/grasscluster.h"
+#include "reone/scene/render/pipeline.h"
 
 using namespace reone::graphics;
 
@@ -65,13 +65,13 @@ void GrassSceneNode::update(float dt) {
     if (!_enabled) {
         return;
     }
-    auto camera = _sceneGraph.activeCamera();
+    auto camera = _sceneGraph.camera();
     if (!camera) {
         return;
     }
     auto mesh = _aabbNode.mesh()->mesh;
     auto &faces = mesh->faces();
-    auto cameraPos = camera->getOrigin();
+    auto cameraPos = camera->get().origin();
     glm::vec3 meshSpaceCameraPos(_absTransformInv * glm::vec4(cameraPos, 1.0f));
 
     // Return grass clusters in out-of-distance faces, to the pool
@@ -120,14 +120,14 @@ void GrassSceneNode::update(float dt) {
             continue;
         }
         auto &face = faces[faceIdx];
-        auto verts = mesh->getVertexCoords(face);
+        auto verts = mesh->faceVertexCoords(face);
         for (int i = 0; i < getNumClustersInFace(face.area); ++i) {
             if (_clusterPool.empty()) {
                 return;
             }
             glm::vec3 baryPosition(getRandomBarycentric());
             glm::vec3 position(barycentricToCartesian(verts[0], verts[1], verts[2], baryPosition));
-            glm::vec2 lightmapUV(mesh->getUV2(face, baryPosition));
+            glm::vec2 lightmapUV(mesh->faceUV2(face, baryPosition));
             auto cluster = _clusterPool.top();
             _clusterPool.pop();
             cluster->setLocalTransform(glm::translate(position));
@@ -139,30 +139,26 @@ void GrassSceneNode::update(float dt) {
     }
 }
 
-void GrassSceneNode::drawLeafs(const std::vector<SceneNode *> &leafs) {
+void GrassSceneNode::renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) {
     if (leafs.empty()) {
         return;
     }
-    _graphicsSvc.textures.bind(*_properties.texture);
-    _graphicsSvc.uniforms.setGeneral([this](auto &general) {
-        general.resetLocals();
-        general.featureMask = UniformsFeatureFlags::hashedalphatest;
-        if (_aabbNode.mesh()->lightmap) {
-            _graphicsSvc.textures.bind(*_aabbNode.mesh()->lightmap, TextureUnits::lightmap);
-            general.featureMask |= UniformsFeatureFlags::lightmap;
-        }
-    });
-    _graphicsSvc.uniforms.setGrass([this, &leafs](auto &grass) {
-        for (size_t i = 0; i < leafs.size(); ++i) {
-            auto cluster = static_cast<GrassClusterSceneNode *>(leafs[i]);
-            grass.quadSize = glm::vec2(_properties.quadSize);
-            grass.radius = kMaxClusterDistance;
-            grass.clusters[i].positionVariant = glm::vec4(cluster->getOrigin(), static_cast<float>(cluster->variant()));
-            grass.clusters[i].lightmapUV = cluster->lightmapUV();
-        }
-    });
-    _graphicsSvc.shaders.use(ShaderProgramId::Grass);
-    _graphicsSvc.meshes.grass().drawInstanced(leafs.size());
+    std::optional<std::reference_wrapper<Texture>> lightmap;
+    if (!_aabbNode.mesh()->lightmap.empty()) {
+        lightmap = *_resourceSvc.textures.get(_aabbNode.mesh()->lightmap, TextureUsage::Lightmap);
+    }
+    auto instances = std::vector<GrassInstance>(leafs.size());
+    for (size_t i = 0; i < leafs.size(); ++i) {
+        const auto cluster = static_cast<GrassClusterSceneNode *>(leafs[i]);
+        instances[i].position = cluster->origin();
+        instances[i].variant = cluster->variant();
+        instances[i].lightmapUV = cluster->lightmapUV();
+    }
+    pass.drawGrass(kMaxClusterDistance,
+                   _properties.quadSize,
+                   *_properties.texture,
+                   lightmap,
+                   instances);
 }
 
 int GrassSceneNode::getNumClustersInFace(float area) const {

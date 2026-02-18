@@ -26,7 +26,7 @@
 using namespace reone;
 using namespace reone::resource;
 
-TEST(rim_writer, should_write_rim) {
+TEST(RimWriter, should_write_rim) {
     // given
 
     auto expectedOutput = StringBuilder()
@@ -50,7 +50,7 @@ TEST(rim_writer, should_write_rim) {
     auto stream = MemoryOutputStream(bytes);
 
     auto writer = RimWriter();
-    writer.add(RimWriter::Resource {"Aa", ResourceType::Txi, ByteBuffer {'B', 'b'}});
+    writer.add(RimWriter::Resource {"Aa", ResType::Txi, ByteBuffer {'B', 'b'}});
 
     // when
 

@@ -19,9 +19,6 @@
 
 #include "reone/graphics/texture.h"
 #include "reone/graphics/textureutil.h"
-#include "reone/resource/format/signutil.h"
-
-using namespace reone::resource;
 
 namespace reone {
 
@@ -72,7 +69,10 @@ void CurReader::loadData() {
         }
     }
 
-    _texture = std::make_shared<Texture>("", getTextureProperties(TextureUsage::GUI));
+    _texture = std::make_shared<Texture>(
+        "",
+        TextureType::TwoDim,
+        getTextureProperties(TextureUsage::GUI));
     _texture->setPixels(_width, _width, PixelFormat::BGRA8, Texture::Layer {std::move(pixels)});
 }
 

@@ -26,14 +26,24 @@ namespace reone {
 
 class SystemModule : boost::noncopyable {
 public:
+    SystemModule(IClock &clock) :
+        _clock(clock) {
+    }
+
     void init();
+    void deinit();
+
+    IClock &clock() {
+        return _clock;
+    }
 
     SystemServices &services() {
         return *_services;
     }
 
 private:
-    std::unique_ptr<Clock> _clock;
+    IClock &_clock;
+
     std::unique_ptr<ThreadPool> _threadPool;
 
     std::unique_ptr<SystemServices> _services;

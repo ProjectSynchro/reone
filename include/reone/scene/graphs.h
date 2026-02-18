@@ -34,7 +34,15 @@ struct AudioServices;
 
 }
 
+namespace resource {
+
+struct ResourceServices;
+
+}
+
 namespace scene {
+
+class IRenderPipelineFactory;
 
 class ISceneGraphs {
 public:
@@ -50,12 +58,16 @@ public:
 class SceneGraphs : public ISceneGraphs, boost::noncopyable {
 public:
     SceneGraphs(
+        IRenderPipelineFactory &renderPipelineFactory,
         graphics::GraphicsOptions &graphicsOpt,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
+        _renderPipelineFactory(renderPipelineFactory),
         _graphicsOpt(graphicsOpt),
         _graphicsSvc(graphicsSvc),
-        _audioSvc(audioSvc) {
+        _audioSvc(audioSvc),
+        _resourceSvc(resourceSvc) {
     }
 
     void reserve(std::string name) override;
@@ -70,10 +82,12 @@ public:
         return names;
     }
 
-protected:
+private:
+    IRenderPipelineFactory &_renderPipelineFactory;
     graphics::GraphicsOptions &_graphicsOpt;
     graphics::GraphicsServices &_graphicsSvc;
     audio::AudioServices &_audioSvc;
+    resource::ResourceServices &_resourceSvc;
 
     std::unordered_map<std::string, std::shared_ptr<ISceneGraph>> _scenes;
 };

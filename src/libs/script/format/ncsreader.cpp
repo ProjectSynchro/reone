@@ -17,18 +17,16 @@
 
 #include "reone/script/format/ncsreader.h"
 
-#include "reone/resource/format/signutil.h"
 #include "reone/script/program.h"
+#include "reone/system/checkutil.h"
 #include "reone/system/logutil.h"
-
-using namespace reone::resource;
 
 namespace reone {
 
 namespace script {
 
 void NcsReader::load() {
-    checkSignature(_ncs, std::string("NCS V1.0", 8));
+    checkEqual("NCS signature", _ncs.readString(8), std::string("NCS V1.0", 8));
 
     uint8_t byteCode = _ncs.readByte();
     uint32_t length = _ncs.readUint32();

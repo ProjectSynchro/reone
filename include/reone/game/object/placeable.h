@@ -21,8 +21,8 @@
 #include "reone/scene/node/walkmesh.h"
 
 #include "../object.h"
-#include "../schema/git.h"
-#include "../schema/utp.h"
+#include "reone/resource/parser/gff/git.h"
+#include "reone/resource/parser/gff/utp.h"
 
 namespace reone {
 
@@ -43,7 +43,7 @@ public:
             services) {
     }
 
-    void loadFromGIT(const schema::GIT_Placeable_List &git);
+    void loadFromGIT(const resource::generated::GIT_Placeable_List &git);
     void loadFromBlueprint(const std::string &resRef);
 
     bool hasInventory() const { return _hasInventory; }
@@ -77,7 +77,7 @@ private:
 
     std::shared_ptr<scene::WalkmeshSceneNode> _walkmesh;
 
-    std::unique_ptr<schema::UTP> _utp;
+    std::unique_ptr<resource::generated::UTP> _utp;
 
     // Scripts
 
@@ -95,8 +95,8 @@ private:
 
     // END Scripts
 
-    void loadUTP(const schema::UTP &utp);
-    void loadTransformFromGIT(const schema::GIT_Placeable_List &git);
+    void loadUTP(const resource::generated::UTP &utp);
+    void loadTransformFromGIT(const resource::generated::GIT_Placeable_List &git);
 
     void updateTransform() override;
 };

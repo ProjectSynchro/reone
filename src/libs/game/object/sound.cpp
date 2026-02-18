@@ -17,14 +17,14 @@
 
 #include "reone/game/object/sound.h"
 
-#include "reone/audio/files.h"
-#include "reone/audio/player.h"
+#include "reone/audio/mixer.h"
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
 #include "reone/resource/2da.h"
-#include "reone/resource/2das.h"
 #include "reone/resource/di/services.h"
-#include "reone/resource/gffs.h"
+#include "reone/resource/provider/2das.h"
+#include "reone/resource/provider/audioclips.h"
+#include "reone/resource/provider/gffs.h"
 #include "reone/resource/resources.h"
 #include "reone/resource/strings.h"
 #include "reone/scene/di/services.h"
@@ -39,22 +39,22 @@ namespace reone {
 
 namespace game {
 
-void Sound::loadFromGIT(const schema::GIT_SoundList &git) {
+void Sound::loadFromGIT(const resource::generated::GIT_SoundList &git) {
     std::string templateResRef(boost::to_lower_copy(git.TemplateResRef));
     loadFromBlueprint(templateResRef);
     loadTransformFromGIT(git);
 }
 
 void Sound::loadFromBlueprint(const std::string &resRef) {
-    std::shared_ptr<Gff> uts(_services.resource.gffs.get(resRef, ResourceType::Uts));
+    std::shared_ptr<Gff> uts(_services.resource.gffs.get(resRef, ResType::Uts));
     if (!uts) {
         return;
     }
-    auto utsParsed = schema::parseUTS(*uts);
+    auto utsParsed = resource::generated::parseUTS(*uts);
     loadUTS(utsParsed);
 }
 
-void Sound::loadUTS(const schema::UTS &uts) {
+void Sound::loadUTS(const resource::generated::UTS &uts) {
     _tag = boost::to_lower_copy(uts.Tag);
     _name = _services.resource.strings.getText(uts.LocName.first);
     _blueprintResRef = boost::to_lower_copy(uts.TemplateResRef);
@@ -89,13 +89,13 @@ void Sound::loadUTS(const schema::UTS &uts) {
     // - Comment (toolset only)
 }
 
-void Sound::loadPriorityFromUTS(const schema::UTS &uts) {
-    std::shared_ptr<TwoDa> priorityGroups(_services.resource.twoDas.get("prioritygroups"));
+void Sound::loadPriorityFromUTS(const resource::generated::UTS &uts) {
+    std::shared_ptr<TwoDA> priorityGroups(_services.resource.twoDas.get("prioritygroups"));
     int priorityIdx = uts.Priority;
     _priority = priorityGroups->getInt(priorityIdx, "priority");
 }
 
-void Sound::loadTransformFromGIT(const schema::GIT_SoundList &git) {
+void Sound::loadTransformFromGIT(const resource::generated::GIT_SoundList &git) {
     _position[0] = git.XPosition;
     _position[1] = git.YPosition;
     _position[2] = git.ZPosition;

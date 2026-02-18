@@ -30,26 +30,26 @@ public:
     MeshSceneNode(
         ModelSceneNode &model,
         graphics::ModelNode &modelNode,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         ModelNodeSceneNode(
             modelNode,
             SceneNodeType::Mesh,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _model(model) {
-
-        init();
     }
 
     void init();
 
     void update(float dt) override;
 
-    void draw();
-    void drawShadow();
+    void render(IRenderPass &pass);
+    void renderShadow(IRenderPass &pass);
 
     bool shouldRender() const;
     bool shouldCastShadows() const;
@@ -59,7 +59,7 @@ public:
     ModelSceneNode &model() { return _model; }
     const ModelSceneNode &model() const { return _model; }
 
-    void setDiffuseMap(graphics::Texture *texture) override;
+    void setMainTexture(graphics::Texture *texture) override;
     void setEnvironmentMap(graphics::Texture *texture) override;
     void setAlpha(float alpha) { _alpha = alpha; }
     void setSelfIllumColor(glm::vec3 color) { _selfIllumColor = std::move(color); }
@@ -72,6 +72,27 @@ private:
         graphics::Texture *bumpmap {nullptr};
     } _nodeTextures;
 
+    struct DanglyVertex {
+        glm::vec3 position {0.0f};
+        glm::vec3 displacement {0.0f};
+        glm::vec3 velocity {0.0f};
+    };
+
+    struct DanglyMesh {
+        std::vector<DanglyVertex> vertices;
+        glm::vec3 prevWorldPos {0.0f};
+    } _dangly;
+
+    struct SaberVertex {
+        glm::vec3 position {0.0f};
+        glm::vec3 displacement {0.0f};
+    };
+
+    struct SaberMesh {
+        glm::vec3 displacement {0.0f};
+        glm::vec3 prevWorldPos {0.0f};
+    } _saber;
+
     ModelSceneNode &_model;
 
     glm::vec2 _uvOffset {0.0f};
@@ -80,7 +101,10 @@ private:
     float _alpha {1.0f};
     glm::vec3 _selfIllumColor {0.0f};
 
+    float _windTime {0.0f};
+
     void initTextures();
+    void initDanglyMesh();
 
     void refreshAdditionalTextures();
 
@@ -90,6 +114,8 @@ private:
 
     void updateUVAnimation(float dt, const graphics::ModelNode::TriangleMesh &mesh);
     void updateBumpmapAnimation(float dt, const graphics::ModelNode::TriangleMesh &mesh);
+    void updateDanglyAnimation(float dt, const graphics::ModelNode::Danglymesh &mesh);
+    void updateSaberAnimation(float dt);
 
     // END Animation
 };

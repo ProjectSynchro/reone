@@ -17,11 +17,13 @@
 
 #pragma once
 
-#include "reone/audio/buffer.h"
+#include "reone/audio/clip.h"
 #include "reone/audio/source.h"
 #include "reone/graphics/lipanimation.h"
 #include "reone/resource/format/2dareader.h"
 #include "reone/resource/format/gffreader.h"
+#include "reone/resource/parser/gff/git.h"
+#include "reone/resource/parser/gff/utc.h"
 #include "reone/resource/types.h"
 #include "reone/scene/animeventlistener.h"
 #include "reone/scene/node/model.h"
@@ -30,8 +32,6 @@
 
 #include "../d20/attributes.h"
 #include "../object.h"
-#include "../schema/git.h"
-#include "../schema/utc.h"
 
 #include "item.h"
 
@@ -99,7 +99,7 @@ public:
             services) {
     }
 
-    void loadFromGIT(const schema::GIT_Creature_List &git);
+    void loadFromGIT(const resource::generated::GIT_Creature_List &git);
     void loadFromBlueprint(const std::string &resRef);
     void loadAppearance();
 
@@ -110,7 +110,7 @@ public:
 
     void giveXP(int amount);
 
-    void playSound(SoundSetEntry entry, bool positional = true);
+    void playSound(resource::SoundSetEntry entry, bool positional = true);
 
     void startTalking(const std::shared_ptr<graphics::LipAnimation> &animation);
     void stopTalking();
@@ -260,7 +260,7 @@ private:
     int _portraitId {0};
     bool _immortal {false};
     int _xp {0};
-    std::shared_ptr<SoundSet> _soundSet;
+    std::shared_ptr<resource::SoundSet> _soundSet;
     BodyBag _bodyBag;
     Perception _perception;
     RacialType _race {RacialType::Unknown};
@@ -315,7 +315,7 @@ private:
 
     // END Scripts
 
-    void loadTransformFromGIT(const schema::GIT_Creature_List &git);
+    void loadTransformFromGIT(const resource::generated::GIT_Creature_List &git);
 
     void updateModel();
     void updateHealth();
@@ -368,13 +368,13 @@ private:
 
     // Blueprint
 
-    void loadUTC(const schema::UTC &utc);
+    void loadUTC(const resource::generated::UTC &utc);
 
-    void loadNameFromUTC(const schema::UTC &utc);
-    void loadSoundSetFromUTC(const schema::UTC &utc);
-    void loadBodyBagFromUTC(const schema::UTC &utc);
-    void loadAttributesFromUTC(const schema::UTC &utc);
-    void loadPerceptionRangeFromUTC(const schema::UTC &utc);
+    void loadNameFromUTC(const resource::generated::UTC &utc);
+    void loadSoundSetFromUTC(const resource::generated::UTC &utc);
+    void loadBodyBagFromUTC(const resource::generated::UTC &utc);
+    void loadAttributesFromUTC(const resource::generated::UTC &utc);
+    void loadPerceptionRangeFromUTC(const resource::generated::UTC &utc);
 
     // END Blueprint
 };

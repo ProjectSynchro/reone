@@ -44,9 +44,9 @@ public:
         _resRef = guiResRef("top");
     }
 
-    bool handle(const SDL_Event &event) override;
+    bool handle(const input::Event &event) override;
     void update(float dt) override;
-    void draw() override;
+    void render() override;
 
     void openEquipment();
     void openInventory();
@@ -174,8 +174,6 @@ private:
     void loadOptions();
 
     GameGUI *getActiveTabGUI() const;
-
-    void setTabLabelsFocusable(bool focusable);
 };
 
 } // namespace game

@@ -40,25 +40,25 @@ public:
     GrassSceneNode(
         GrassProperties properties,
         graphics::ModelNode &aabbNode,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         SceneNode(
             SceneNodeType::Grass,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _properties(std::move(properties)),
         _aabbNode(aabbNode) {
-
-        init();
     }
 
     void init();
 
     void update(float dt) override;
 
-    void drawLeafs(const std::vector<SceneNode *> &leafs) override;
+    void renderLeafs(IRenderPass &pass, const std::vector<SceneNode *> &leafs) override;
 
     int getNumClustersInFace(float area) const;
     int getRandomGrassVariant() const;

@@ -17,16 +17,14 @@
 
 #include "reone/tools/script/exprtree.h"
 
-#include "reone/resource/exception/format.h"
 #include "reone/script/instrutil.h"
 #include "reone/script/routine.h"
 #include "reone/script/routines.h"
 #include "reone/script/variableutil.h"
 #include "reone/system/exception/notimplemented.h"
+#include "reone/system/exception/validation.h"
 #include "reone/system/logutil.h"
 #include "reone/tools/script/exprtreeoptimizer.h"
-
-using namespace reone::resource;
 
 namespace reone {
 
@@ -106,7 +104,7 @@ ExpressionTree ExpressionTree::fromProgram(const ScriptProgram &program, IRoutin
 }
 
 void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<DecompilationContext> ctx) {
-    debug(boost::format("Decompiling function at %08x") % func.start);
+    debug(str(boost::format("Decompiling function at %08x") % func.start));
 
     auto mainBlock = std::make_shared<BlockExpression>();
     mainBlock->offset = func.start;
@@ -126,7 +124,7 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
         decompiledBlocks[std::make_pair(block->offset, ctx->stack.size())] = block;
 
         try {
-            debug(boost::format("Begin decompiling block at %08x") % block->offset);
+            debug(str(boost::format("Begin decompiling block at %08x") % block->offset));
 
             for (uint32_t offset = block->offset; offset < ctx->program.length();) {
                 maxOffset = std::max(maxOffset, offset);
@@ -136,14 +134,14 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                     block->append(maybeLabel->second);
                 }
 
-                // debug(boost::format("Stack: size=%d") % ctx->stack.size());
+                // debug(str(boost::format("Stack: size=%d") % ctx->stack.size()));
                 // for (auto it = ctx->stack.rbegin(); it != ctx->stack.rend(); ++it) {
                 //     auto type = describeVariableType(it->param->variableType);
                 //     debug("    " + type);
                 // }
 
                 auto &ins = ctx->program.getInstruction(offset);
-                debug(boost::format("Decompiling instruction at %08x of type %s") % offset % describeInstructionType(ins.type));
+                debug(str(boost::format("Decompiling instruction at %08x of type %s") % offset % describeInstructionType(ins.type)));
 
                 if (ins.type == InstructionType::NOP ||
                     ins.type == InstructionType::NOP2) {
@@ -320,7 +318,7 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                             ctx->stack.pop_back();
                         }
                         if (!argument) {
-                            throw FormatException("Unable to extract action argument from stack");
+                            throw ValidationException("Unable to extract action argument from stack");
                         }
                         arguments.push_back(argument);
                     }
@@ -366,7 +364,7 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                            ins.type == InstructionType::CPDOWNBP) {
                     auto stackSize = static_cast<int>(ctx->stack.size());
                     if (ins.stackOffset >= 0) {
-                        throw FormatException("Non-negative stack offsets are not supported");
+                        throw ValidationException("Non-negative stack offsets are not supported");
                     }
                     auto startIdx = (ins.type == InstructionType::CPDOWNSP ? stackSize : ctx->numGlobals) + (ins.stackOffset / 4);
                     auto numFrames = ins.size / 4;
@@ -412,11 +410,11 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                            ins.type == InstructionType::CPTOPBP) {
                     auto stackSize = static_cast<int>(ctx->stack.size());
                     if (ins.stackOffset >= 0) {
-                        throw FormatException("Non-negative stack offsets are not supported");
+                        throw ValidationException("Non-negative stack offsets are not supported");
                     }
                     auto startIdx = (ins.type == InstructionType::CPTOPSP ? stackSize : ctx->numGlobals) + (ins.stackOffset / 4);
                     if (startIdx < 0) {
-                        throw FormatException("Out of bounds stack access: " + std::to_string(startIdx));
+                        throw ValidationException("Out of bounds stack access: " + std::to_string(startIdx));
                     }
                     auto numFrames = ins.size / 4;
                     for (int i = 0; i < numFrames; ++i) {
@@ -463,7 +461,7 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                     }
                 } else if (ins.type == InstructionType::MOVSP) {
                     if (ins.stackOffset >= 0) {
-                        throw FormatException("Non-negative stack offsets are not supported");
+                        throw ValidationException("Non-negative stack offsets are not supported");
                     }
                     for (int i = 0; i < -ins.stackOffset / 4; ++i) {
                         ctx->stack.pop_back();
@@ -875,7 +873,7 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                            ins.type == InstructionType::INCISP ||
                            ins.type == InstructionType::INCIBP) {
                     if (ins.stackOffset >= 0) {
-                        throw FormatException("Non-negative stack offsets are not supported");
+                        throw ValidationException("Non-negative stack offsets are not supported");
                     }
                     auto stackSize = static_cast<int>(ctx->stack.size());
                     auto frameIdx = ((ins.type == InstructionType::DECISP || ins.type == InstructionType::INCISP) ? stackSize : ctx->numGlobals) + (ins.stackOffset / 4);
@@ -943,16 +941,16 @@ void ExpressionTree::decompileFunction(Function &func, std::shared_ptr<Decompila
                 offset = ins.nextOffset;
             }
 
-            debug(boost::format("End decompiling block at %08x") % block->offset);
+            debug(str(boost::format("End decompiling block at %08x") % block->offset));
 
         } catch (const std::logic_error &e) {
-            error(boost::format("Error decompiling block at %08x: %s") % block->offset % std::string(e.what()));
+            error(str(boost::format("Error decompiling block at %08x: %s") % block->offset % std::string(e.what())));
         }
     }
 
     func.end = maxOffset;
 
-    debug(boost::format("End decompiling function at %08x") % func.start);
+    debug(str(boost::format("End decompiling function at %08x") % func.start));
 }
 
 std::unique_ptr<ConstantExpression> ExpressionTree::constantExpression(const Instruction &ins) {

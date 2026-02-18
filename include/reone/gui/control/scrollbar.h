@@ -35,17 +35,17 @@ public:
         IGUI &gui,
         scene::ISceneGraphs &sceneGraphs,
         graphics::GraphicsServices &graphicsSvc,
-        resource::IStrings &strings) :
+        resource::ResourceServices &resourceSvc) :
         Control(
             gui,
             ControlType::ScrollBar,
             sceneGraphs,
             graphicsSvc,
-            strings) {
+            resourceSvc) {
     }
 
-    void load(const schema::GUI_BASECONTROL &gui, bool protoItem) override;
-    void draw(const glm::ivec2 &screenSize, const glm::ivec2 &offset, const std::vector<std::string> &text) override;
+    void load(const resource::generated::GUI_BASECONTROL &gui, bool protoItem) override;
+    void render(const glm::ivec2 &screenSize, const glm::ivec2 &offset, scene::IRenderPass &pass) override;
 
     void setScrollState(ScrollState state);
 
@@ -62,11 +62,11 @@ private:
     Thumb _thumb;
     ScrollState _state;
 
-    void drawThumb(const glm::ivec2 &offset);
-    void drawArrows(const glm::ivec2 &offset);
+    void renderThumb(const glm::ivec2 &offset, scene::IRenderPass &pass);
+    void renderArrows(const glm::ivec2 &offset, scene::IRenderPass &pass);
 
-    void drawUpArrow(const glm::ivec2 &offset);
-    void drawDownArrow(const glm::ivec2 &offset);
+    void renderUpArrow(const glm::ivec2 &offset, scene::IRenderPass &pass);
+    void renderDownArrow(const glm::ivec2 &offset, scene::IRenderPass &pass);
 };
 
 } // namespace gui

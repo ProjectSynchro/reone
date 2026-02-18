@@ -20,21 +20,24 @@ set(SYSTEM_HEADERS
     ${SYSTEM_INCLUDE_DIR}/binaryreader.h
     ${SYSTEM_INCLUDE_DIR}/binarywriter.h
     ${SYSTEM_INCLUDE_DIR}/cache.h
+    ${SYSTEM_INCLUDE_DIR}/checkutil.h
     ${SYSTEM_INCLUDE_DIR}/clock.h
     ${SYSTEM_INCLUDE_DIR}/di/module.h
     ${SYSTEM_INCLUDE_DIR}/di/services.h
     ${SYSTEM_INCLUDE_DIR}/exception/endofstream.h
     ${SYSTEM_INCLUDE_DIR}/exception/filenotfound.h
+    ${SYSTEM_INCLUDE_DIR}/exception/validation.h
     ${SYSTEM_INCLUDE_DIR}/exception/notimplemented.h
     ${SYSTEM_INCLUDE_DIR}/fileutil.h
     ${SYSTEM_INCLUDE_DIR}/hexutil.h
+    ${SYSTEM_INCLUDE_DIR}/logger.h
     ${SYSTEM_INCLUDE_DIR}/logutil.h
     ${SYSTEM_INCLUDE_DIR}/randomutil.h
-    ${SYSTEM_INCLUDE_DIR}/stream/memoryinput.h
-    ${SYSTEM_INCLUDE_DIR}/stream/memoryoutput.h
     ${SYSTEM_INCLUDE_DIR}/stream/fileinput.h
     ${SYSTEM_INCLUDE_DIR}/stream/fileoutput.h
     ${SYSTEM_INCLUDE_DIR}/stream/input.h
+    ${SYSTEM_INCLUDE_DIR}/stream/memoryinput.h
+    ${SYSTEM_INCLUDE_DIR}/stream/memoryoutput.h
     ${SYSTEM_INCLUDE_DIR}/stream/output.h
     ${SYSTEM_INCLUDE_DIR}/stringbuilder.h
     ${SYSTEM_INCLUDE_DIR}/textreader.h
@@ -42,7 +45,9 @@ set(SYSTEM_HEADERS
     ${SYSTEM_INCLUDE_DIR}/threadpool.h
     ${SYSTEM_INCLUDE_DIR}/threadutil.h
     ${SYSTEM_INCLUDE_DIR}/timer.h
-    ${SYSTEM_INCLUDE_DIR}/types.h)
+    ${SYSTEM_INCLUDE_DIR}/timespan.h
+    ${SYSTEM_INCLUDE_DIR}/types.h
+    ${SYSTEM_INCLUDE_DIR}/unicodeutil.h)
 
 set(SYSTEM_SOURCES
     ${SYSTEM_SOURCE_DIR}/binaryreader.cpp
@@ -51,20 +56,22 @@ set(SYSTEM_SOURCES
     ${SYSTEM_SOURCE_DIR}/di/module.cpp
     ${SYSTEM_SOURCE_DIR}/fileutil.cpp
     ${SYSTEM_SOURCE_DIR}/hexutil.cpp
-    ${SYSTEM_SOURCE_DIR}/logutil.cpp
+    ${SYSTEM_SOURCE_DIR}/logger.cpp
     ${SYSTEM_SOURCE_DIR}/randomutil.cpp
     ${SYSTEM_SOURCE_DIR}/stream/memoryinput.cpp
     ${SYSTEM_SOURCE_DIR}/textreader.cpp
     ${SYSTEM_SOURCE_DIR}/textwriter.cpp
     ${SYSTEM_SOURCE_DIR}/threadpool.cpp
-    ${SYSTEM_SOURCE_DIR}/threadutil.cpp)
+    ${SYSTEM_SOURCE_DIR}/threadutil.cpp
+    ${SYSTEM_SOURCE_DIR}/unicodeutil.cpp)
 
 add_library(system STATIC ${SYSTEM_HEADERS} ${SYSTEM_SOURCES} ${CLANG_FORMAT_PATH})
 set_target_properties(system PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}$<$<CONFIG:Debug>:/debug>/lib)
 set_target_properties(system PROPERTIES DEBUG_POSTFIX "d")
 target_precompile_headers(system PRIVATE ${CMAKE_SOURCE_DIR}/src/pch.h)
-target_link_libraries(system PRIVATE ${Boost_FILESYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
 
-if(NOT MSVC)
-    target_link_libraries(system PRIVATE Threads::Threads)
+if(MSVC)
+    target_link_libraries(system PRIVATE SDL2::SDL2)
+else()
+    target_link_libraries(system PRIVATE ${SDL2_LIBRARIES} Threads::Threads)
 endif()

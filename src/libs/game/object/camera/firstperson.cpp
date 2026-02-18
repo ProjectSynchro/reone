@@ -39,20 +39,20 @@ void FirstPersonCamera::load() {
     cameraSceneNode()->setPerspectiveProjection(_fovy, _aspect, kDefaultClipPlaneNear, kDefaultClipPlaneFar);
 }
 
-bool FirstPersonCamera::handle(const SDL_Event &event) {
+bool FirstPersonCamera::handle(const input::Event &event) {
     switch (event.type) {
-    case SDL_MOUSEMOTION:
+    case input::EventType::MouseMotion:
         return handleMouseMotion(event.motion);
-    case SDL_KEYDOWN:
+    case input::EventType::KeyDown:
         return handleKeyDown(event.key);
-    case SDL_KEYUP:
+    case input::EventType::KeyUp:
         return handleKeyUp(event.key);
     default:
         return false;
     }
 }
 
-bool FirstPersonCamera::handleMouseMotion(const SDL_MouseMotionEvent &event) {
+bool FirstPersonCamera::handleMouseMotion(const input::MouseMotionEvent &event) {
     _facing = glm::mod(
         _facing - event.xrel * kMouseMultiplier,
         glm::two_pi<float>());
@@ -78,25 +78,33 @@ void FirstPersonCamera::updateSceneNode() {
     _sceneNode->setLocalTransform(transform);
 }
 
-bool FirstPersonCamera::handleKeyDown(const SDL_KeyboardEvent &event) {
-    switch (event.keysym.scancode) {
-    case SDL_SCANCODE_W:
-        _moveForward = true;
+bool FirstPersonCamera::handleKeyDown(const input::KeyEvent &event) {
+    switch (event.code) {
+    case input::KeyCode::D:
+        _moveDir = MovementDirection::Right;
         return true;
 
-    case SDL_SCANCODE_A:
-        _moveLeft = true;
+    case input::KeyCode::A:
+        _moveDir = MovementDirection::Left;
         return true;
 
-    case SDL_SCANCODE_S:
-        _moveBackward = true;
+    case input::KeyCode::W:
+        _moveDir = MovementDirection::Forward;
         return true;
 
-    case SDL_SCANCODE_D:
-        _moveRight = true;
+    case input::KeyCode::S:
+        _moveDir = MovementDirection::Back;
         return true;
 
-    case SDL_SCANCODE_LSHIFT:
+    case input::KeyCode::Q:
+        _moveDir = MovementDirection::Up;
+        return true;
+
+    case input::KeyCode::Z:
+        _moveDir = MovementDirection::Down;
+        return true;
+
+    case input::KeyCode::LeftShift:
         _multiplier = 2.0f;
         return true;
 
@@ -105,25 +113,45 @@ bool FirstPersonCamera::handleKeyDown(const SDL_KeyboardEvent &event) {
     }
 }
 
-bool FirstPersonCamera::handleKeyUp(const SDL_KeyboardEvent &event) {
-    switch (event.keysym.scancode) {
-    case SDL_SCANCODE_W:
-        _moveForward = false;
+bool FirstPersonCamera::handleKeyUp(const input::KeyEvent &event) {
+    switch (event.code) {
+    case input::KeyCode::D:
+        if (_moveDir == MovementDirection::Right) {
+            _moveDir = MovementDirection::None;
+        }
         return true;
 
-    case SDL_SCANCODE_A:
-        _moveLeft = false;
+    case input::KeyCode::A:
+        if (_moveDir == MovementDirection::Left) {
+            _moveDir = MovementDirection::None;
+        }
         return true;
 
-    case SDL_SCANCODE_S:
-        _moveBackward = false;
+    case input::KeyCode::W:
+        if (_moveDir == MovementDirection::Forward) {
+            _moveDir = MovementDirection::None;
+        }
         return true;
 
-    case SDL_SCANCODE_D:
-        _moveRight = false;
+    case input::KeyCode::S:
+        if (_moveDir == MovementDirection::Back) {
+            _moveDir = MovementDirection::None;
+        }
         return true;
 
-    case SDL_SCANCODE_LSHIFT:
+    case input::KeyCode::Q:
+        if (_moveDir == MovementDirection::Up) {
+            _moveDir = MovementDirection::None;
+        }
+        return true;
+
+    case input::KeyCode::Z:
+        if (_moveDir == MovementDirection::Down) {
+            _moveDir = MovementDirection::None;
+        }
+        return true;
+
+    case input::KeyCode::LeftShift:
         _multiplier = 1.0f;
         return true;
 
@@ -136,29 +164,46 @@ void FirstPersonCamera::update(float dt) {
     float facingSin = glm::sin(_facing) * _multiplier * kMovementSpeed * dt;
     float facingCos = glm::cos(_facing) * _multiplier * kMovementSpeed * dt;
     float pitchSin = glm::sin(_pitch) * _multiplier * kMovementSpeed * dt;
+    float pitchCos = glm::cos(_pitch) * _multiplier * kMovementSpeed * dt;
     bool positionChanged = false;
 
-    if (_moveForward) {
+    switch (_moveDir) {
+    case MovementDirection::Right:
+        _position.x += facingCos;
+        _position.y += facingSin;
+        positionChanged = true;
+        break;
+    case MovementDirection::Left:
+        _position.x -= facingCos;
+        _position.y -= facingSin;
+        positionChanged = true;
+        break;
+    case MovementDirection::Forward:
         _position.x -= facingSin;
         _position.y += facingCos;
         _position.z += pitchSin;
         positionChanged = true;
-    }
-    if (_moveLeft) {
-        _position.x -= facingCos;
-        _position.y -= facingSin;
-        positionChanged = true;
-    }
-    if (_moveBackward) {
+        break;
+    case MovementDirection::Back:
         _position.x += facingSin;
         _position.y -= facingCos;
         _position.z -= pitchSin;
         positionChanged = true;
-    }
-    if (_moveRight) {
-        _position.x += facingCos;
-        _position.y += facingSin;
+        break;
+    case MovementDirection::Up:
+        _position.x += facingSin * pitchSin;
+        _position.y -= facingCos * pitchSin;
+        _position.z += pitchCos;
         positionChanged = true;
+        break;
+    case MovementDirection::Down:
+        _position.x -= facingSin * pitchSin;
+        _position.y += facingCos * pitchSin;
+        _position.z -= pitchCos;
+        positionChanged = true;
+        break;
+    default:
+        break;
     }
     if (positionChanged) {
         updateSceneNode();
@@ -166,10 +211,7 @@ void FirstPersonCamera::update(float dt) {
 }
 
 void FirstPersonCamera::stopMovement() {
-    _moveForward = false;
-    _moveLeft = false;
-    _moveBackward = false;
-    _moveRight = false;
+    _moveDir = MovementDirection::None;
 }
 
 void FirstPersonCamera::setPosition(const glm::vec3 &pos) {

@@ -29,35 +29,37 @@ public:
         IGUI &gui,
         scene::ISceneGraphs &sceneGraphs,
         graphics::GraphicsServices &graphicsSvc,
-        resource::IStrings &strings) :
+        resource::ResourceServices &resourceSvc) :
         Control(
             gui,
             ControlType::ImageButton,
             sceneGraphs,
             graphicsSvc,
-            strings) {
+            resourceSvc) {
 
-        _clickable = true;
+        _selectable = true;
     }
 
-    void load(const schema::GUI_BASECONTROL &gui, bool protoItem) override;
+    void load(const resource::generated::GUI_BASECONTROL &gui, bool protoItem) override;
 
-    void draw(
+    void render(
         const glm::ivec2 &offset,
         const std::vector<std::string> &text,
         const std::string &iconText,
         const std::shared_ptr<graphics::Texture> &iconTexture,
-        const std::shared_ptr<graphics::Texture> &iconFrame);
+        const std::shared_ptr<graphics::Texture> &iconFrame,
+        scene::IRenderPass &pass);
 
 private:
     std::shared_ptr<graphics::Texture> _iconFrame;
     std::shared_ptr<graphics::Font> _iconFont;
 
-    void drawIcon(
+    void renderIcon(
         const glm::ivec2 &offset,
         const std::string &iconText,
         const std::shared_ptr<graphics::Texture> &iconTexture,
-        const std::shared_ptr<graphics::Texture> &iconFrame);
+        const std::shared_ptr<graphics::Texture> &iconFrame,
+        scene::IRenderPass &pass);
 };
 
 } // namespace gui

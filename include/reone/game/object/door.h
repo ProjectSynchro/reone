@@ -21,8 +21,8 @@
 #include "reone/scene/node/walkmesh.h"
 
 #include "../object.h"
-#include "../schema/git.h"
-#include "../schema/utd.h"
+#include "reone/resource/parser/gff/git.h"
+#include "reone/resource/parser/gff/utd.h"
 
 namespace reone {
 
@@ -43,7 +43,7 @@ public:
             services) {
     }
 
-    void loadFromGIT(const schema::GIT_Door_List &git);
+    void loadFromGIT(const resource::generated::GIT_Door_List &git);
     void loadFromBlueprint(const std::string &resRef);
 
     bool isSelectable() const override;
@@ -111,8 +111,8 @@ private:
 
     // END Scripts
 
-    void loadUTD(const schema::UTD &utd);
-    void loadTransformFromGIT(const schema::GIT_Door_List &git);
+    void loadUTD(const resource::generated::UTD &utd);
+    void loadTransformFromGIT(const resource::generated::GIT_Door_List &git);
 
     void updateTransform() override;
 };

@@ -30,25 +30,25 @@ public:
     LightSceneNode(
         ModelSceneNode &model,
         graphics::ModelNode &modelNode,
-        SceneGraph &sceneGraph,
+        ISceneGraph &sceneGraph,
         graphics::GraphicsServices &graphicsSvc,
-        audio::AudioServices &audioSvc) :
+        audio::AudioServices &audioSvc,
+        resource::ResourceServices &resourceSvc) :
         ModelNodeSceneNode(
             modelNode,
             SceneNodeType::Light,
             sceneGraph,
             graphicsSvc,
-            audioSvc),
+            audioSvc,
+            resourceSvc),
         _model(model) {
-
-        init();
     }
 
     void init();
 
     void update(float dt) override;
 
-    void drawLensFlare(const graphics::ModelNode::LensFlare &flare);
+    void renderLensFlare(IRenderPass &pass, const graphics::ModelNode::LensFlare &flare);
 
     bool isDirectional() const;
 

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "reone/audio/buffer.h"
+#include "reone/audio/clip.h"
 
 namespace reone {
 
@@ -47,28 +47,12 @@ constexpr glm::vec3 kTSLGUIColorBase = glm::vec3(0.192157f, 0.768627f, 0.647059f
 constexpr glm::vec3 kTSLGUIColorHilight = glm::vec3(0.768627f, 0.768627f, 0.686275f);
 constexpr glm::vec3 kTSLGUIColorDisabled = glm::vec3(0.513725f, 0.513725f, 0.415686f);
 
-enum class GameID {
-    KotOR,
-    TSL
-};
-
 enum class BackgroundType {
     None,
     Menu,
     Load,
     Computer0,
     Computer1
-};
-
-enum class CursorType {
-    None,
-    Default,
-    Attack,
-    Door,
-    Talk,
-    Pickup,
-    DisableMine,
-    RecoverMine
 };
 
 enum class WeaponType {
@@ -138,47 +122,6 @@ enum class DurationType {
     Instant = 0,
     Temporary = 1,
     Permanent = 2
-};
-
-enum class ConversationType {
-    Cinematic = 0,
-    Computer = 1
-};
-
-enum class ComputerType {
-    Normal = 0,
-    Rakatan = 1
-};
-
-enum class SoundSetEntry {
-    BattleCry1 = 0,
-    BattleCry2 = 1,
-    BattleCry3 = 2,
-    BattleCry4 = 3,
-    BattleCry5 = 4,
-    BattleCry6 = 5,
-    Select1 = 6,
-    Select2 = 7,
-    Select3 = 8,
-    AttackGrunt1 = 9,
-    AttackGrunt2 = 10,
-    AttackGrunt3 = 11,
-    PainGrunt1 = 12,
-    PainGrunt2 = 13,
-    LowHealth = 14,
-    Dead = 15,
-    CriticalHit = 16,
-    TargetImmune = 17,
-    LayMine = 18,
-    DisarmMine = 19,
-    BeginStealth = 20,
-    BeginSearch = 21,
-    BeginUnlock = 22,
-    UnlockFailed = 23,
-    UnlockSuccess = 24,
-    SeparatedFromParty = 25,
-    RejoinParty = 26,
-    Poisoned = 27
 };
 
 enum class CameraType {
@@ -1312,7 +1255,9 @@ enum class InvisibilityType {
     Improved = 4
 };
 
-struct InventorySlot {
+using InventorySlot = int;
+
+struct InventorySlots {
     static constexpr int head = 0;
     static constexpr int body = 1;
     static constexpr int hands = 3;
@@ -1346,9 +1291,6 @@ struct PartySelectionContext {
     int forceNpc1 {-1};
     int forceNpc2 {-2};
 };
-
-using Visibility = std::multimap<std::string, std::string>;
-using SoundSet = std::unordered_map<SoundSetEntry, std::shared_ptr<reone::audio::AudioBuffer>>;
 
 } // namespace game
 
