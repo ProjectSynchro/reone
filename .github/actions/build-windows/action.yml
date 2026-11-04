@@ -41,7 +41,7 @@ runs:
         key: windows
         max-size: 1G
         evict-old-files: job
-        save: ${{github.event_name == 'push' && github.ref == 'refs/heads/master'}}
+        save: true
 
     - name: Configure CMake
       shell: bash
