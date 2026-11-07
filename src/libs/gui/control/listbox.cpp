@@ -475,7 +475,8 @@ int ListBox::getTextBlockAlignmentOffset(int content, int room, int padding) con
 }
 
 int ListBox::getTextLineHeight() const {
-    return static_cast<int>(std::lround(_protoItem->text().font->height() * _protoItem->scale()));
+    const auto &font = _protoItem->text().font;
+    return font ? static_cast<int>(std::lround(font->height() * _protoItem->scale())) : 0;
 }
 
 void ListBox::renderTextLineRows(const glm::ivec2 &screenSize, const glm::ivec2 &offset, IRenderPass &pass) {
@@ -702,11 +703,13 @@ int ListBox::getItemHeight(const Item &item) const {
     if (!_protoItem) {
         return 0;
     }
-    if (!_protoMatchContent) {
+    // Without a font the text has no height, so the row keeps the prototype's.
+    const auto &font = _protoItem->text().font;
+    if (!_protoMatchContent || !font) {
         return _protoItem->extent().height;
     }
 
-    float fontHeight = _protoItem->text().font->height() * _protoItem->scale();
+    float fontHeight = font->height() * _protoItem->scale();
     int textHeight = static_cast<int>(item._textLines.size() * fontHeight + 0.5f);
     if (static_cast<int>(fontHeight + 0.5f) <= 15) {
         ++textHeight;

@@ -83,3 +83,23 @@ TEST(ListBox, keeps_its_items_through_a_stretch_when_the_prototype_has_no_font) 
 
     EXPECT_EQ(1, fixture.listBox.getItemCount());
 }
+
+TEST(ListBox, sizes_content_rows_when_the_prototype_has_no_font) {
+    FontlessListBox fixture;
+    fixture.listBox.setProtoMatchContent(true);
+    ListBox::Item item;
+    item.text = "Unbreakable";
+
+    fixture.listBox.addItem(std::move(item));
+
+    EXPECT_EQ(1, fixture.listBox.getItemCount());
+}
+
+TEST(ListBox, lays_out_text_line_rows_when_the_prototype_has_no_font) {
+    FontlessListBox fixture;
+    fixture.listBox.setTextLineRows(true);
+
+    fixture.listBox.addTextLinesAsItems("first\nsecond");
+
+    EXPECT_EQ(2, fixture.listBox.getItemCount());
+}
