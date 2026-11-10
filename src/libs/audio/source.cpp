@@ -281,6 +281,12 @@ void AudioSource::setGainScale(float scale) {
     applyGain();
 }
 
+void AudioSource::setRolloff(float rolloff) {
+    if (_source) {
+        alSourcef(_source, AL_ROLLOFF_FACTOR, rolloff);
+    }
+}
+
 void AudioSource::setGain(float gain) {
     _gain = gain;
     applyGain();

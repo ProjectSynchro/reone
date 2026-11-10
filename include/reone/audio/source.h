@@ -78,6 +78,8 @@ public:
     void setPitch(float pitch);
     /** Replaces the gain the source was created with, keeping its fade. */
     void setGain(float gain);
+    /** Scales how much OpenAL quietens the source with distance; 0 leaves it to its gain. */
+    void setRolloff(float rolloff);
 
     /**
      * Marks the source as its owner's, which keeps it and may play it again,

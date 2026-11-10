@@ -33,6 +33,8 @@ public:
     virtual glm::vec3 listenerPosition() const = 0;
 
     virtual void setListenerPosition(glm::vec3 position) = 0;
+    /** Where the listener faces; zero until it is turned. */
+    virtual glm::vec3 listenerForward() const = 0;
     /** Turns the listener to face \p forward with \p up above it, both unit vectors. */
     virtual void setListenerOrientation(glm::vec3 forward, glm::vec3 up) = 0;
     /** Scales the gain of every sound. */
@@ -88,6 +90,7 @@ public:
     glm::vec3 listenerPosition() const override { return _listenerPosition; }
 
     void setListenerPosition(glm::vec3 position) override;
+    glm::vec3 listenerForward() const override { return _listenerForward; }
     void setListenerOrientation(glm::vec3 forward, glm::vec3 up) override;
     void setListenerGain(float gain) override;
 

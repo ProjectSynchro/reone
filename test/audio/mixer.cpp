@@ -190,3 +190,49 @@ TEST(AudioMixer, ambient_scale_eases_the_ambient_groups_2d_sources_over_a_second
     mixer.jumpAmbientScale(1.0f);
     EXPECT_FLOAT_EQ(gainOf(*ambient), full);
 }
+
+TEST(AudioMixer, streamed_positional_sound_falls_off_by_its_own_line_and_facing) {
+    Context openAL;
+    if (!openTestContext(openAL)) {
+        GTEST_SKIP() << "no OpenAL device opens";
+    }
+    AudioOptions options;
+    NiceMock<MockContext> context;
+    ON_CALL(context, listenerForward()).WillByDefault(Return(glm::vec3(0.0f, 1.0f, 0.0f)));
+    AudioMixer mixer(options, context);
+    // Group 1 streams and group 2 does not; both fall off from 2 to 10 metres.
+    PriorityGroup row;
+    row.fullVolumeDistance = 2.0f;
+    row.cutoffDistance = 10.0f;
+    mixer.setPriorityGroups({row, row, row});
+    mixer.setStreamedGroups({1});
+    auto at = [&mixer](int group, const glm::vec3 &position) {
+        return mixer.play(silentClip(), AudioType::Sound, group, 1.0f, true, position);
+    };
+    auto gainOf = [](const AudioSource &source) {
+        float gain = 0.0f;
+        alGetSourcef(source.alSource(), AL_GAIN, &gain);
+        return gain;
+    };
+    auto rolloffOf = [](const AudioSource &source) {
+        float rolloff = 0.0f;
+        alGetSourcef(source.alSource(), AL_ROLLOFF_FACTOR, &rolloff);
+        return rolloff;
+    };
+
+    auto near = at(1, glm::vec3(0.0f, 1.0f, 0.0f));
+    auto ahead = at(1, glm::vec3(0.0f, 6.0f, 0.0f));
+    auto behind = at(1, glm::vec3(0.0f, -6.0f, 0.0f));
+    auto unstreamed = at(2, glm::vec3(0.0f, 6.0f, 0.0f));
+    const float full = gainOf(*near);
+
+    EXPECT_NEAR(gainOf(*ahead), full * std::pow(0.5f, 0.6f), 1e-4f);
+    EXPECT_NEAR(gainOf(*behind), full * std::pow(0.5f * 0.875f, 0.6f), 1e-4f);
+    EXPECT_FLOAT_EQ(rolloffOf(*ahead), 0.0f);
+    EXPECT_FLOAT_EQ(gainOf(*unstreamed), full);
+    EXPECT_FLOAT_EQ(rolloffOf(*unstreamed), 1.0f);
+
+    ahead->setPosition(glm::vec3(0.0f, 1.5f, 0.0f));
+    mixer.render();
+    EXPECT_FLOAT_EQ(gainOf(*ahead), full);
+}
