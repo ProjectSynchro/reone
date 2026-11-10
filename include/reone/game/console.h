@@ -18,7 +18,9 @@
 #pragma once
 
 #include <charconv>
+#include <locale>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <type_traits>
 
@@ -49,16 +51,27 @@ public:
         }
 
         std::string_view str = arg.value();
-        const char *begin = str.data();
-        const char *end = str.data() + str.size();
-
-        T value;
-        std::from_chars_result result = std::from_chars(begin, end, value);
-
-        if (result.ec != std::errc {} || result.ptr != end) {
-            return std::optional<T>();
+        T value {};
+        // Apple's libc++ has no floating-point from_chars on the macOS
+        // versions reone supports, so those are read through a stream with
+        // the classic locale, which keeps '.' the separator.
+        if constexpr (std::is_floating_point_v<T>) {
+            std::istringstream stream {std::string(str)};
+            stream.imbue(std::locale::classic());
+            stream >> value;
+            if (stream.fail() || !stream.eof()) {
+                return std::optional<T>();
+            }
+            return value;
+        } else {
+            const char *begin = str.data();
+            const char *end = str.data() + str.size();
+            std::from_chars_result result = std::from_chars(begin, end, value);
+            if (result.ec != std::errc {} || result.ptr != end) {
+                return std::optional<T>();
+            }
+            return value;
         }
-        return value;
     }
 
     /**
