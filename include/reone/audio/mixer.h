@@ -91,6 +91,15 @@ public:
      * its first obstruction at once and eases to each later one.
      */
     virtual void setObstructionTest(ObstructionTest test) = 0;
+    /** Sets the priority groups whose 2D sources the room's ambient scale reaches. */
+    virtual void setAmbientGroups(std::set<int> groups) = 0;
+    /**
+     * Eases the ambient scale towards \p scale over a second, from wherever
+     * it is now. It scales the gain of the ambient groups' 2D sources.
+     */
+    virtual void setAmbientScale(float scale) = 0;
+    /** Sets the ambient scale to \p scale at once, ending any easing under way. */
+    virtual void jumpAmbientScale(float scale) = 0;
     /** The row of priority group \p group. */
     virtual PriorityGroup priorityGroup(int group) const = 0;
     /**
@@ -176,6 +185,9 @@ public:
     void setDryGroups(std::set<int> groups) override;
     void setRoomReverb(bool reverb) override;
     void setObstructionTest(ObstructionTest test) override;
+    void setAmbientGroups(std::set<int> groups) override;
+    void setAmbientScale(float scale) override;
+    void jumpAmbientScale(float scale) override;
     PriorityGroup priorityGroup(int group) const override;
     void setFocusLost(bool lost) override;
     void setMuted(bool muted) override;
@@ -234,6 +246,13 @@ private:
     size_t _nextObstructed {0};
     /** When the obstructions last eased; none before the first render. */
     std::optional<std::chrono::steady_clock::time_point> _obstructionRendered;
+    std::set<int> _ambientGroups;
+    /** The ambient scale now, and where its easing started from and is going. */
+    float _ambientScale {1.0f};
+    float _ambientScaleFrom {1.0f};
+    float _ambientScaleTo {1.0f};
+    /** When the easing under way started; none once it has ended. */
+    std::optional<std::chrono::steady_clock::time_point> _ambientScaleStart;
     bool _soundsHeldForMovie {false};
     /** The priority groups the sound mode in force keeps playing; none without a mode. */
     std::optional<std::set<int>> _modeKeptGroups;
@@ -251,7 +270,8 @@ private:
 
     /**
      * The gain a source plays at: the volume of its kind times its priority
-     * group's volume and the gain asked for, weighed by the 2D3D bias. A
+     * group's volume and the gain asked for, and for an ambient one the
+     * ambient scale, weighed by the 2D3D bias. A
      * positional source raises that to a power below one, so it rises
      * steeply at first; the others keep it linear.
      */
@@ -267,6 +287,12 @@ private:
     void refreshObstruction();
     /** Eases each source's obstruction towards the one last found. */
     void renderObstruction();
+    /** Whether the ambient scale reaches a source: a 2D one in an ambient group. */
+    bool isAmbient(bool positional, std::optional<int> group) const;
+    /** Moves the ambient scale along its easing, and gives it to the ambient sources. */
+    void renderAmbientScale();
+    /** Gives the ambient scale now to the ambient sources. */
+    void applyAmbientScale();
     /** Resumes a source that nothing holds paused any more. */
     void resumeIfFree(ActiveSource &active);
     /** The arbiter holds the source back: it waits for room or a voice, or is out of range. */

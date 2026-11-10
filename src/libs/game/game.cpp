@@ -889,6 +889,7 @@ void Game::initTables() {
                                              kCreatureVocalizationSoundGroup,
                                              kBarkSoundGroup});
     _services.audio.mixer.setDryGroups({kBarkSoundGroup});
+    _services.audio.mixer.setAmbientGroups({kAreaWideAmbientSoundGroup, kSingleShotGlobalSoundGroup});
     _services.audio.mixer.setObstructionTest([this](const glm::vec3 &source, const glm::vec3 &listener) {
         auto module = _module;
         auto area = module ? module->area() : nullptr;
@@ -2197,8 +2198,10 @@ void Game::retireActiveModuleRuntime() {
 void Game::retireActiveAreaRuntime() {
     _services.game.projectiles.retireAreaRuntime();
     _areaMusic.unload();
-    // The area's rooms go with it.
+    // The area's rooms go with it, and so does their ambient scale: sounds
+    // played outside an area, the credits' music among them, play at full.
     _soundRoom = nullptr;
+    _services.audio.mixer.jumpAmbientScale(1.0f);
     auto module = _module;
     auto area = module ? module->area() : nullptr;
     if (area) {
@@ -5575,8 +5578,17 @@ void Game::updateEnvironment(const glm::vec3 &cameraPosition) {
     if (!room || room == _soundRoom) {
         return;
     }
+    // An area's first room takes its ambient scale at once; moving on to
+    // another room eases it.
+    const bool enteringArea = !_soundRoom;
     _soundRoom = room;
-    const int envAudio = area->roomEnvAudio(*room);
+    const Area::RoomAudio audio = area->roomAudio(*room);
+    if (enteringArea) {
+        _services.audio.mixer.jumpAmbientScale(audio.ambientScale);
+    } else {
+        _services.audio.mixer.setAmbientScale(audio.ambientScale);
+    }
+    const int envAudio = audio.envAudio;
     if (envAudio == _envAudio) {
         return;
     }
