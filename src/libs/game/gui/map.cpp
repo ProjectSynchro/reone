@@ -20,6 +20,7 @@
 #include "reone/game/areamapstate.h"
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/object/module.h"
 #include "reone/game/object/waypoint.h"
 #include "reone/graphics/context.h"

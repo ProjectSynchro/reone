@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "reone/game/object/creature.h"
 #include "reone/game/object/module.h"
 #include "reone/game/portraits.h"
 #include "reone/game/savedgame.h"

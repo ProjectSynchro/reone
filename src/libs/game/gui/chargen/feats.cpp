@@ -23,6 +23,7 @@
 #include "reone/game/d20/feats.h"
 #include "reone/game/game.h"
 #include "reone/game/gui/chargen.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/party.h"
 #include "reone/gui/control/button.h"
 #include "reone/gui/control/iconchain.h"

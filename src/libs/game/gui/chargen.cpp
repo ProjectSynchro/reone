@@ -27,6 +27,7 @@
 #include "reone/game/d20/spells.h"
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/party.h"
 #include "reone/game/portraits.h"
 #include "reone/game/types.h"

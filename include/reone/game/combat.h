@@ -23,7 +23,7 @@
 #include "action.h"
 #include "attack.h"
 #include "effect/damage.h"
-#include "object/creature.h"
+#include "object.h"
 #include "types.h"
 
 namespace reone {
@@ -32,6 +32,7 @@ namespace game {
 
 class Area;
 class CastSpellAction;
+class Creature;
 class Game;
 struct ServicesView;
 
@@ -99,10 +100,7 @@ struct CombatRound {
         RoundAction(const std::shared_ptr<Action> &action,
                     const std::shared_ptr<Creature> &attacker,
                     const std::shared_ptr<Object> &target,
-                    bool actorQueueAssociated) :
-            action(action),
-            attacker(attacker), target(target),
-            actorQueueAssociated(actorQueueAssociated) {}
+                    bool actorQueueAssociated);
 
         std::shared_ptr<Action> action;
         RuntimeObjectRef<Creature> attacker;
@@ -461,7 +459,7 @@ public:
      * The creature's round action is under way: it owns a round that has not
      * ended, and no pause of its round has ended since the action was taken up.
      */
-    bool isRoundActionUnderWay(const Creature &actor) const { return ownsRound(actor) && actor.roundActionKind() != 0; }
+    bool isRoundActionUnderWay(const Creature &actor) const;
     /**
      * The creature's dispatcher runs: unless the creature's round is held, it
      * lets go of the entry it last handed on.

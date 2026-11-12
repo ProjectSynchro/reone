@@ -44,6 +44,7 @@
 #include "reone/game/gui/sounds.h"
 #include "reone/game/location.h"
 #include "reone/game/object/areaofeffect.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/object/door.h"
 #include "reone/game/object/encounter.h"
 #include "reone/game/object/item.h"

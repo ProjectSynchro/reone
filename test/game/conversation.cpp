@@ -27,6 +27,7 @@
 #include "reone/game/console.h"
 #include "reone/game/game.h"
 #include "reone/game/gui/conversation.h"
+#include "reone/game/object/creature.h"
 #include "reone/resource/dialog.h"
 
 using namespace reone;

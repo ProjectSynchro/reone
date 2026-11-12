@@ -19,6 +19,7 @@
 
 #include "../fixtures/engine.h"
 #include "reone/game/game.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/party.h"
 #include "reone/game/script/routines.h"
 #include "reone/game/types.h"

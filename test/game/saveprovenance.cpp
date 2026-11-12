@@ -8,11 +8,12 @@
 #include "../fixtures/engine.h"
 #include "../fixtures/game.h"
 
-#include "reone/game/action/wait.h"
 #include "reone/game/action/playanimation.h"
+#include "reone/game/action/wait.h"
 #include "reone/game/effect/spellimmunity.h"
 #include "reone/game/game.h"
 #include "reone/game/location.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/object/item.h"
 #include "reone/game/object/module.h"
 #include "reone/game/saveprovenance.h"

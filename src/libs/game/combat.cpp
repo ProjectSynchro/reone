@@ -56,6 +56,18 @@ namespace reone {
 
 namespace game {
 
+CombatRound::RoundAction::RoundAction(const std::shared_ptr<Action> &action,
+                                      const std::shared_ptr<Creature> &attacker,
+                                      const std::shared_ptr<Object> &target,
+                                      bool actorQueueAssociated) :
+    action(action),
+    attacker(attacker), target(target),
+    actorQueueAssociated(actorQueueAssociated) {}
+
+bool Combat::isRoundActionUnderWay(const Creature &actor) const {
+    return ownsRound(actor) && actor.roundActionKind() != 0;
+}
+
 // The animations and times round entries start with.
 static constexpr int kCastEntryAnimation = 10017;
 static constexpr int kCastEntryMilliseconds = 500;

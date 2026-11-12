@@ -200,6 +200,10 @@ Game::Game(
 
 Game::~Game() = default;
 
+void Game::setPostDialogCharacterSwitch(const std::shared_ptr<Creature> &creature) {
+    _postDialogCharacterSwitch = creature;
+}
+
 std::shared_ptr<Module> Game::newModule() {
     return newObject<Module>(*this, _services);
 }
