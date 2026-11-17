@@ -102,9 +102,24 @@ void EmitterSceneNode::init() {
 void EmitterSceneNode::update(float dt) {
     removeExpiredParticles(dt);
     spawnParticles(dt);
+    updateGravityTarget();
 
     for (auto &child : _children) {
         child->update(dt);
+    }
+}
+
+void EmitterSceneNode::updateGravityTarget() {
+    _gravityTarget.reset();
+    auto &emitter = *_modelNode.emitter();
+    if (!emitter.p2p || emitter.p2pBezier) {
+        return;
+    }
+    for (auto &child : _children) {
+        if (child->type() == SceneNodeType::Dummy) {
+            _gravityTarget = glm::vec3(child->localTransform()[3]);
+            return;
+        }
     }
 }
 
@@ -218,6 +233,7 @@ void EmitterSceneNode::prewarmContinuousParticles() {
     if (_birthrate <= 0.0f || _lifeExpectancy <= 0.0f) {
         return;
     }
+    updateGravityTarget();
 
     // Take the phase where a particle is born exactly as the scene opens. The
     // ones still alive behind it are then those emitted one, two, three birth

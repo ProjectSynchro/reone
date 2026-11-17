@@ -49,13 +49,12 @@ void ParticleSceneNode::update(float dt) {
     transform *= glm::translate(_velocity * dt);
     setLocalTransform(std::move(transform));
 
-    // Gravity-type P2P emitter
-    if (modelNode.emitter()->p2p && !modelNode.emitter()->p2pBezier) {
-        auto ref = std::find_if(_children.begin(), _children.end(), [](auto &child) { return child->type() == SceneNodeType::Dummy; });
-        if (ref != _children.end()) {
-            glm::vec3 emitterSpaceRefPos(_emitter.absoluteTransformInverse() * glm::vec4((*ref)->origin(), 1.0f));
-            glm::vec3 pullDir(glm::normalize(emitterSpaceRefPos - origin()));
-            _velocity += _emitter.grav() * pullDir * dt;
+    // A particle's position and velocity are in emitter space, as is the target.
+    if (auto &target = _emitter.gravityTarget()) {
+        glm::vec3 toTarget(*target - glm::vec3(_localTransform[3]));
+        float distance = glm::length(toTarget);
+        if (distance > 0.0f) {
+            _velocity += _emitter.grav() * (toTarget / distance) * dt;
         }
     }
 

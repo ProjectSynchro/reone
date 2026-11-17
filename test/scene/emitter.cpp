@@ -529,3 +529,76 @@ TEST(EmitterPrewarm, no_seeded_particle_is_born_already_expired) {
             << "birthrate " << birthrate << " life " << lifeExpectancy;
     }
 }
+
+// Particles born at rest on an emitter that sits away from the world origin,
+// with a dummy child to one side of it. Returns the position, in emitter space,
+// of the particle that has moved furthest a few updates later.
+static glm::vec3 particlePositionNearTarget(bool p2pBezier) {
+    auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
+
+    auto graphicsModule = TestGraphicsModule();
+    graphicsModule.init();
+    auto audioModule = TestAudioModule();
+    audioModule.init();
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
+    auto rootNode = std::make_shared<ModelNode>(0, "root", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
+    auto emitter = std::make_shared<ModelNode::Emitter>();
+    emitter->updateMode = ModelNode::Emitter::UpdateMode::Single;
+    emitter->renderMode = ModelNode::Emitter::RenderMode::Normal;
+    emitter->p2p = true;
+    emitter->p2pBezier = p2pBezier;
+    auto emitterNode = std::make_shared<ModelNode>(1, "emitter", glm::vec3(100.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, rootNode.get());
+    emitterNode->setEmitter(emitter);
+    emitterNode->floatTracks()[ControllerTypes::lifeExp].add(0.0f, 10.0f);
+    emitterNode->floatTracks()[ControllerTypes::grav].add(0.0f, 10.0f);
+    auto targetNode = std::make_shared<ModelNode>(2, "target", glm::vec3(5.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, emitterNode.get());
+    emitterNode->addChild(targetNode);
+    rootNode->addChild(emitterNode);
+
+    std::vector<std::shared_ptr<Animation>> animations;
+    animations.push_back(std::make_shared<Animation>("default", 0.0f, 0.0f, "", nullptr, std::vector<Animation::Event>()));
+    auto model = std::make_shared<Model>("p2p", 0, rootNode, animations, "", 1.0f);
+    model->init();
+    auto sceneModel = scene->newModel(model, ModelUsage::GUI);
+    sceneModel->init();
+    scene->addRoot(sceneModel);
+
+    auto emitterSceneNode = static_cast<EmitterSceneNode *>(sceneModel->getNodeByName("emitter"));
+    scene->update(0.0f);
+    scene->update(0.1f);
+    scene->update(0.1f);
+
+    std::optional<glm::vec3> furthest;
+    for (auto &child : emitterSceneNode->children()) {
+        if (child->type() != SceneNodeType::Particle) {
+            continue;
+        }
+        glm::vec3 position(child->localTransform()[3]);
+        if (!furthest || glm::length(position) > glm::length(*furthest)) {
+            furthest = position;
+        }
+    }
+    if (!furthest) {
+        ADD_FAILURE() << "the emitter has no particle";
+        return glm::vec3(0.0f);
+    }
+    return *furthest;
+}
+
+TEST(EmitterSceneNode, gravity_point_to_point_pulls_particles_towards_its_dummy_child) {
+    auto position = particlePositionNearTarget(false);
+
+    EXPECT_GT(position.x, 0.0f);
+    EXPECT_FLOAT_EQ(0.0f, position.y);
+    EXPECT_FLOAT_EQ(0.0f, position.z);
+}
+
+TEST(EmitterSceneNode, bezier_point_to_point_does_not_pull_particles) {
+    auto position = particlePositionNearTarget(true);
+
+    EXPECT_FLOAT_EQ(0.0f, position.x);
+}

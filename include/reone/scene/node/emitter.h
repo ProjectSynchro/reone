@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "reone/system/timer.h"
 
 #include "modelnode.h"
@@ -79,6 +81,13 @@ public:
     int frameEnd() const { return _frameEnd; }
     float grav() const { return _grav; }
 
+    /**
+     * The point a gravity point-to-point emitter pulls its particles towards:
+     * its dummy child's position, in emitter space. Empty for any other
+     * emitter, and for one with no dummy child.
+     */
+    const std::optional<glm::vec3> &gravityTarget() const { return _gravityTarget; }
+
 private:
     template <class T>
     struct StartMidEnd {
@@ -124,6 +133,7 @@ private:
     float _blurLength {0.0f};
     float _mass {0.0f};
     float _grav {0.0f};
+    std::optional<glm::vec3> _gravityTarget;
     float _lightningDelay {0.0f};
     float _lightningRadius {0.0f};
     float _lightningScale {0.0f};
@@ -137,6 +147,7 @@ private:
     std::deque<ParticleSceneNode *> _particlePool; /**< pre-allocated pool of particles */
 
     void spawnParticles(float dt);
+    void updateGravityTarget();
     void removeExpiredParticles(float dt);
     ParticleSceneNode *doSpawnParticle();
     int fountainSpawnCount(float elapsed);
