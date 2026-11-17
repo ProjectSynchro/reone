@@ -104,8 +104,7 @@ void EmitterSceneNode::update(float dt) {
     spawnParticles(dt);
 
     for (auto &child : _children) {
-        auto particle = static_cast<ParticleSceneNode *>(child);
-        particle->update(dt);
+        child->update(dt);
     }
 }
 
