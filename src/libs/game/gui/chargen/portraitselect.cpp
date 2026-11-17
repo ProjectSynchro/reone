@@ -20,6 +20,7 @@
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
 #include "reone/game/gui/chargen.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/portrait.h"
 #include "reone/game/portraits.h"
 #include "reone/game/types.h"

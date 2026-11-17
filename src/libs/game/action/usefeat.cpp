@@ -25,6 +25,7 @@
 #include "reone/game/di/services.h"
 #include "reone/game/game.h"
 #include "reone/game/object.h"
+#include "reone/game/object/creature.h"
 #include "reone/system/randomutil.h"
 
 namespace reone {

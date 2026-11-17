@@ -51,6 +51,8 @@
 #include "journal.h"
 #include "location.h"
 #include "messagelog.h"
+#include "object.h"
+#include "object/item.h"
 #include "options.h"
 #include "party.h"
 #include "pazaaksession.h"
@@ -679,7 +681,7 @@ public:
     float baseItemCostMultiplier(int baseItem) const;
     void setBaseItemCostMultiplier(int baseItem, float multiplier) { _baseItemCostMultipliers[baseItem] = multiplier; }
     /** Control returns to this party member when the conversation it handed on ends. */
-    void setPostDialogCharacterSwitch(const std::shared_ptr<Creature> &creature) { _postDialogCharacterSwitch = creature; }
+    void setPostDialogCharacterSwitch(const std::shared_ptr<Creature> &creature);
     void cancelPostDialogCharacterSwitch() { _postDialogCharacterSwitch.reset(); }
     /**
      * When a member was stored, pass the lead on one member at a time, at most

@@ -202,6 +202,10 @@ Game::Game(
     _messageLog.setCombatBufferEnabled(gameId == resource::GameID::TSL);
 }
 
+void Game::setPostDialogCharacterSwitch(const std::shared_ptr<Creature> &creature) {
+    _postDialogCharacterSwitch = creature;
+}
+
 std::shared_ptr<Module> Game::newModule() {
     return newObject<Module>(*this, _services);
 }

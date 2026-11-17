@@ -15,6 +15,7 @@
 #include "reone/game/console.h"
 #include "reone/game/game.h"
 #include "reone/game/gui/computer.h"
+#include "reone/game/object/creature.h"
 
 using namespace reone;
 using namespace reone::game;

@@ -32,6 +32,7 @@
 #include "reone/game/forcerules.h"
 #include "reone/game/game.h"
 #include "reone/game/object/area.h"
+#include "reone/game/object/creature.h"
 #include "reone/game/object/item.h"
 #include "reone/game/object/module.h"
 #include "reone/game/party.h"
