@@ -195,6 +195,7 @@ set(TESTS_SOURCES
     ${TESTS_SOURCE_DIR}/system/cast.cpp
     ${TESTS_SOURCE_DIR}/system/fileutil.cpp
     ${TESTS_SOURCE_DIR}/system/hexutil.cpp
+    ${TESTS_SOURCE_DIR}/system/randomutil.cpp
     ${TESTS_SOURCE_DIR}/system/smallset.cpp
     ${TESTS_SOURCE_DIR}/system/smallvector.cpp
     ${TESTS_SOURCE_DIR}/system/stream/fileinput.cpp
