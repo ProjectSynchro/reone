@@ -25,6 +25,16 @@ namespace reone {
 void setRandomSeed(uint32_t seed);
 
 /**
+ * A random number from a stream kept for the renderer, apart from the shared
+ * one. Renderer noise such as the SSAO kernel, which only the PBR pipeline
+ * builds, leaves the shared stream where it was for particles and grass.
+ *
+ * @param min lower bound (inclusive)
+ * @param max upper bound (exclusive)
+ */
+float renderRandomFloat(float min, float max);
+
+/**
  * @param min lower bound (inclusive)
  * @param max upper bound (inclusive)
  */
