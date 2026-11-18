@@ -1616,3 +1616,46 @@ TEST(ModelSceneNode, should_keep_lip_animation_alive_for_channel_lifetime) {
     EXPECT_EQ(1l, channels[0].lipAnim.use_count());
     EXPECT_NEAR(1.0f, channels[0].lipAnim->length(), 1e-5);
 }
+
+TEST(ModelSceneNode, children_keep_the_order_the_model_lists_them_in) {
+    // given
+    auto graphicsOpt = GraphicsOptions();
+    auto pipelineFactory = MockRenderPipelineFactory();
+
+    auto graphicsModule = TestGraphicsModule();
+    graphicsModule.init();
+
+    auto audioModule = TestAudioModule();
+    audioModule.init();
+
+    auto resourceModule = TestResourceModule();
+    resourceModule.init();
+
+    auto scene = std::make_unique<SceneGraph>("test", pipelineFactory, graphicsOpt, graphicsModule.services(), audioModule.services(), resourceModule.services());
+
+    // Enough children that an order by address would show.
+    auto rootNode = std::make_shared<ModelNode>(0, "root_node", glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, nullptr);
+    std::vector<std::string> names;
+    for (uint16_t number = 1; number <= 32; ++number) {
+        names.push_back("child_" + std::to_string(number));
+        rootNode->addChild(std::make_shared<ModelNode>(number, names.back(), glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), true, rootNode.get()));
+    }
+    auto model = std::make_shared<Model>("some_model", 0, rootNode, std::vector<std::shared_ptr<Animation>>(), "", 1.0f);
+    auto modelSceneNode = std::make_shared<ModelSceneNode>(
+        model,
+        ModelUsage::Creature,
+        *scene,
+        graphicsModule.services(),
+        audioModule.services(),
+        resourceModule.services());
+
+    // when
+    modelSceneNode->init();
+
+    // then
+    std::vector<std::string> order;
+    for (auto *child : modelSceneNode->getNodeByName("root_node")->children()) {
+        order.push_back(static_cast<ModelNodeSceneNode *>(child)->modelNode().name());
+    }
+    EXPECT_EQ(order, names);
+}
