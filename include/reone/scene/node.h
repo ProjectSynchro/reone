@@ -78,7 +78,7 @@ public:
     SceneNodeType type() const { return _type; }
     SceneNode *parent() { return _parent; }
     const SceneNode *parent() const { return _parent; }
-    const std::unordered_set<SceneNode *> &children() const { return _children; }
+    const std::vector<SceneNode *> &children() const { return _children; }
     const graphics::AABB &aabb() const { return _aabb; }
     IUser *user() { return _user; }
     const IUser *user() const { return _user; }
@@ -123,7 +123,12 @@ protected:
     resource::ResourceServices &_resourceSvc;
 
     SceneNode *_parent {nullptr};
-    std::unordered_set<SceneNode *> _children;
+    /**
+     * In insertion order, so children update and draw in the same order on
+     * every run. Emitters draw from the shared random generator as they spawn
+     * particles, and transparent geometry is composited in this order.
+     */
+    std::vector<SceneNode *> _children;
 
     graphics::AABB _aabb;
 
